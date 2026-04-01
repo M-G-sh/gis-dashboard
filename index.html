@@ -470,7 +470,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <div style="font-size:52px;margin-bottom:8px">🛰️</div>
     <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:4px">GIS Survey</div>
     <div style="font-size:12px;color:#607d9e;margin-bottom:28px">لوحة تحكم المسح الميداني</div>
-    <input id="login-email" type="email" placeholder="البريد الإلكتروني" value="mohamed.gamal.shokry88@gmail.com"
+    <input id="login-email" type="email" placeholder="البريد الإلكتروني"
       style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
              border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
              margin-bottom:10px;outline:none;text-align:right"/>
@@ -800,6 +800,8 @@ let sortCol='captured_at', sortAsc=false, srchTerm='';
 
 // ── Map ──────────────────────────────────────────
 const map = L.map('map').setView([21.3891,39.8579],13);
+map._userMoved = false;
+map.on('moveend zoomend', () => { map._userMoved = true; });
 const baseStreet = L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google',maxZoom:19});
 const baseSat    = L.tileLayer('https://mt1.google.com/vt/lyrs=s&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google Satellite',maxZoom:20});
 baseSat.addTo(map);
@@ -932,7 +934,7 @@ function renderMap() {
     if(isSelected) setTimeout(()=>marker.getElement()?.classList.add('marker-selected'),50);
     bounds.push([r.latitude,r.longitude]);
   });
-  if(bounds.length) map.fitBounds(bounds,{padding:[30,30]});
+  if(bounds.length && !map._userMoved) map.fitBounds(bounds,{padding:[30,30]});
 }
 
 // ── GIS Layers ────────────────────────────────────
