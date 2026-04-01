@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIS Survey Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://sql.js.org/dist/sql-wasm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:        #1a1a1a;
+  --panel:     #242424;
+  --panel2:    #2e2e2e;
+  --border:    #3a3a3a;
+  --accent:    #00c5ff;
+  --accent2:   #00e5ff;
+  --green:     #71c96e;
+  --orange:    #ff9800;
+  --red:       #f44336;
+  --text:      #ffffff;
+  --text2:     #b0b0b0;
+  --text3:     #6e6e6e;
+  --header-h:  52px;
+  --side-w:    300px;
+}
+[data-theme="light"] {
+  --bg:        #f0f2f5;
+  --panel:     #ffffff;
+  --panel2:    #f5f7fa;
+  --border:    #dde1e7;
+  --accent:    #0078d4;
+  --accent2:   #00b4d8;
+  --green:     #107c10;
+  --text:      #1a1a1a;
+  --text2:     #555;
+  --text3:     #999;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; }
+body {
+  font-family:'Cairo',sans-serif;
+  background:var(--bg); color:var(--text);
+  display:flex; flex-direction:column;
+  transition:background .2s,color .2s;
+}
+
+/* ═══ HEADER ═══ */
+header {
+  height:var(--header-h);
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:0;
+  flex-shrink:0; z-index:200;
+}
+.h-brand {
+  width:var(--side-w);
+  display:flex; align-items:center; gap:10px;
+  padding:0 16px; border-left:1px solid var(--border);
+  height:100%; flex-shrink:0;
+}
+.h-logo {
+  width:32px; height:32px; border-radius:6px;
+  background:linear-gradient(135deg,#0078d4,#00c5ff);
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; flex-shrink:0;
+}
+.h-title { font-size:14px; font-weight:700; color:var(--text); line-height:1.15; }
+.h-sub   { font-size:10px; color:var(--text3); font-weight:400; }
+
+/* KPI strip */
+.kpi-strip {
+  display:flex; align-items:center; gap:1px;
+  flex:1; height:100%; overflow:hidden;
+}
+.kpi {
+  flex:1; height:100%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  border-left:1px solid var(--border);
+  padding:6px 10px; cursor:default;
+  transition:background .15s; position:relative;
+}
+.kpi:hover { background:var(--panel2); }
+.kpi::after {
+  content:''; position:absolute; bottom:0; left:20%; right:20%;
+  height:2px; background:var(--accent); border-radius:2px 2px 0 0;
+  transform:scaleX(0); transition:transform .2s;
+}
+.kpi:hover::after { transform:scaleX(1); }
+.kpi .n { font-size:22px; font-weight:900; color:var(--accent); line-height:1; }
+.kpi .l { font-size:10px; color:var(--text3); margin-top:1px; text-transform:uppercase; letter-spacing:.5px; }
+
+/* Header right */
+.h-actions {
+  display:flex; align-items:center; gap:6px;
+  padding:0 14px; height:100%; border-right:1px solid var(--border);
+  flex-shrink:0;
+}
+.hbtn {
+  height:30px; padding:0 12px; border-radius:4px;
+  border:1px solid var(--border); background:var(--panel2);
+  color:var(--text2); cursor:pointer; font-size:11px;
+  font-family:'Cairo',sans-serif; font-weight:600;
+  display:flex; align-items:center; gap:5px;
+  transition:all .15s; white-space:nowrap;
+}
+.hbtn:hover { background:var(--accent); border-color:var(--accent); color:#000; }
+.hbtn.act  { background:var(--accent); border-color:var(--accent); color:#000; }
+.tbtn {
+  width:30px; height:30px; border-radius:4px;
+  border:1px solid var(--border); background:var(--panel2);
+  color:var(--text2); cursor:pointer; font-size:15px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s;
+}
+.tbtn:hover { background:var(--accent); border-color:var(--accent); color:#000; }
+#last-upd { font-size:10px; color:var(--text3); white-space:nowrap; padding-right:4px; }
+
+/* ═══ BODY ═══ */
+.body-wrap { display:flex; flex:1; overflow:hidden; }
+
+/* ═══ LEFT PANEL ═══ */
+.side {
+  width:var(--side-w); background:var(--panel);
+  border-left:1px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden; flex-shrink:0;
+}
+.side-sect { border-bottom:1px solid var(--border); }
+.sect-head {
+  padding:9px 14px 6px;
+  font-size:10px; font-weight:700; color:var(--text3);
+  text-transform:uppercase; letter-spacing:.8px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.sect-badge {
+  background:var(--panel2); border:1px solid var(--border);
+  border-radius:10px; padding:1px 7px; font-size:10px; color:var(--accent);
+}
+
+/* Surveyor list */
+.sv-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 14px; cursor:pointer; font-size:12px;
+  color:var(--text2); transition:all .12s; border-right:3px solid transparent;
+}
+.sv-item:hover { background:var(--panel2); color:var(--text); }
+.sv-item.active { background:rgba(0,197,255,.08); color:var(--accent); border-right-color:var(--accent); }
+.sv-item .sv-n { display:flex; align-items:center; gap:6px; }
+.sv-cnt { font-size:10px; font-weight:700; color:var(--text3); }
+.sv-item.active .sv-cnt { color:var(--accent); }
+
+/* Records */
+.rec-head {
+  padding:8px 14px 5px;
+  font-size:10px; font-weight:700; color:var(--text3);
+  text-transform:uppercase; letter-spacing:.8px;
+  border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+#records-list { overflow-y:auto; flex:1; }
+.rec {
+  display:flex; gap:8px; padding:7px 12px;
+  border-bottom:1px solid var(--border);
+  cursor:pointer; transition:background .12s;
+}
+.rec:hover { background:var(--panel2); }
+.rec-img {
+  width:48px; height:36px; border-radius:4px; object-fit:cover;
+  border:1px solid var(--border); flex-shrink:0; cursor:zoom-in;
+}
+.rec-ph {
+  width:48px; height:36px; border-radius:4px; flex-shrink:0;
+  background:var(--panel2); border:1px dashed var(--border);
+  display:flex; align-items:center; justify-content:center; font-size:14px;
+}
+.rec-info { flex:1; min-width:0; }
+.rec-date { font-size:10px; color:var(--text3); }
+.rec-type { font-size:11px; color:var(--accent); font-weight:600; margin-top:1px; }
+.rec-loc  { font-size:10px; color:var(--text2); margin-top:1px; }
+.rec-who  { font-size:10px; color:var(--green); margin-top:1px; }
+
+/* Chart */
+.bar-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; padding:0 14px; }
+.bar-lbl { width:70px; font-size:10px; color:var(--text2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bar-track { flex:1; background:var(--panel2); border-radius:2px; height:10px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:2px; transition:width .5s ease; }
+.bar-val { font-size:10px; color:var(--text3); width:18px; text-align:left; }
+
+/* Footer */
+.side-foot { padding:10px 12px; border-top:1px solid var(--border); flex-shrink:0; }
+.ref-btn {
+  width:100%; height:32px; background:var(--accent);
+  color:#000; border:none; border-radius:4px;
+  cursor:pointer; font-size:11px; font-family:'Cairo',sans-serif;
+  font-weight:700; transition:background .15s;
+}
+.ref-btn:hover { background:var(--accent2); }
+
+/* ═══ MAP AREA ═══ */
+.map-area { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+.map-wrap  { flex:1; padding:10px; min-height:0; display:flex; flex-direction:column; }
+#map       { flex:1; border-radius:8px; border:1px solid var(--border); overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.4); }
+
+/* ═══ ATTR PANEL (bottom) ═══ */
+.attr-panel {
+  height:270px; background:var(--panel);
+  border-top:2px solid var(--accent);
+  display:none; flex-direction:column; flex-shrink:0;
+}
+.attr-panel.open { display:flex; }
+.attr-panel .mhdr { padding:8px 14px; }
+.attr-panel .mhdr h3 { font-size:12px; }
+
+.leaflet-popup-content-wrapper {
+  background:var(--panel) !important;
+  border:1px solid var(--border) !important;
+  border-radius:6px !important;
+  box-shadow:0 4px 20px rgba(0,0,0,.5) !important;
+}
+.leaflet-popup-tip { background:var(--panel) !important; }
+
+/* ═══ MODAL BASE ═══ */
+.ov {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+  z-index:1000; align-items:center; justify-content:center;
+}
+.ov.open { display:flex; }
+.mbox {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:8px; overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,.6);
+}
+.mhdr {
+  background:var(--panel2); border-bottom:1px solid var(--border);
+  padding:12px 16px; display:flex; align-items:center; gap:10px;
+}
+.mhdr h3 { font-size:13px; font-weight:700; color:var(--text); flex:1; }
+.mclose {
+  width:28px; height:28px; border-radius:4px;
+  background:var(--panel); border:1px solid var(--border);
+  color:var(--text2); cursor:pointer; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s;
+}
+.mclose:hover { background:#f44336; border-color:#f44336; color:#fff; }
+
+/* ═══ LIGHTBOX ═══ */
+#lightbox { flex-direction:column; gap:10px; }
+#lightbox img { max-width:92vw; max-height:85vh; border-radius:6px; box-shadow:0 8px 40px rgba(0,0,0,.7); }
+#lb-dl {
+  padding:7px 22px; background:var(--accent); color:#000;
+  border:none; border-radius:4px; cursor:pointer; font-size:12px;
+  font-family:'Cairo',sans-serif; font-weight:700;
+}
+
+/* ═══ ATTR TABLE ═══ */
+#attr-ov { align-items:flex-start; padding:18px; }
+#attr-ov .mbox { width:100%; max-height:92vh; display:flex; flex-direction:column; }
+#attr-search {
+  height:28px; padding:0 10px; background:var(--panel);
+  border:1px solid var(--border); border-radius:4px;
+  color:var(--text); font-size:11px; font-family:'Cairo',sans-serif;
+  width:160px; transition:border .15s;
+}
+#attr-search:focus { outline:none; border-color:var(--accent); }
+.tbl-wrap { overflow:auto; flex:1; }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+thead th {
+  background:var(--panel2); color:var(--accent);
+  padding:8px 10px; text-align:right;
+  border-bottom:2px solid var(--border);
+  cursor:pointer; white-space:nowrap;
+  position:sticky; top:0; font-weight:700;
+  letter-spacing:.3px; transition:background .12s;
+}
+thead th:hover { background:var(--accent); color:#000; }
+tbody tr { border-bottom:1px solid var(--border); transition:background .15s; cursor:pointer; }
+tbody tr:hover { background:var(--panel2); }
+tbody tr.selected { background:rgba(0,197,255,.15); outline:1px solid #00c5ff55; }
+tbody td { padding:6px 10px; color:var(--text2); white-space:nowrap; }
+tbody td.num { color:var(--accent); font-weight:600; }
+tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cursor:zoom-in; }
+
+/* ═══ COMPARISON ═══ */
+#cmp-ov { padding:14px; }
+#cmp-ov .mbox { width:100%; height:90vh; display:flex; flex-direction:column; }
+.cmp-body { display:flex; flex:1; overflow:hidden; }
+.cmp-pane { flex:1; position:relative; overflow:hidden; }
+.cmp-lbl {
+  position:absolute; top:10px; right:10px; z-index:10;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
+  color:#fff; padding:4px 12px; border-radius:20px; font-size:11px;
+}
+#cmp-map { width:100%; height:100%; }
+#cmp-img { width:100%; height:100%; object-fit:contain; background:var(--bg); display:block; }
+.cmp-div { width:3px; background:var(--accent); }
+
+/* ═══ SELECTION BAR ═══ */
+#sel-bar {
+  display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  background:var(--accent); color:#000; border-radius:30px;
+  padding:10px 20px; gap:12px; align-items:center; z-index:2000;
+  box-shadow:0 4px 20px rgba(0,197,255,.4); font-family:'Cairo',sans-serif; font-size:13px; font-weight:700;
+}
+#sel-bar.visible { display:flex; }
+#sel-bar button {
+  background:rgba(0,0,0,.2); border:none; color:#000; border-radius:20px;
+  padding:5px 14px; cursor:pointer; font-family:'Cairo',sans-serif; font-weight:700; font-size:12px;
+}
+#sel-bar button:hover { background:rgba(0,0,0,.35); }
+.marker-selected > div {
+  outline:3px solid #fff !important;
+  box-shadow:0 0 0 3px #ff9800, 0 0 12px #ff9800 !important;
+}
+#poly-hint {
+  display:none; position:fixed; top:70px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,.8); color:#00c5ff; border:1px solid #00c5ff;
+  border-radius:20px; padding:7px 18px; font-size:12px; z-index:2000;
+  font-family:'Cairo',sans-serif; pointer-events:auto;
+}
+#poly-hint.visible { display:block; }
+
+/* ═══ DOWNLOAD ═══ */
+#dl-ov .mbox { width:460px; max-width:95vw; }
+.dl-body { padding:16px; }
+.dl-info {
+  background:var(--panel2); border:1px solid var(--border);
+  border-radius:4px; padding:8px 12px; font-size:11px;
+  color:var(--text2); margin-bottom:14px;
+}
+.dl-info strong { color:var(--accent); }
+.dl-sect-lbl { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; display:block; margin-bottom:8px; }
+.fmt-row { display:flex; gap:6px; margin-bottom:14px; }
+.fmt-c {
+  flex:1; padding:10px 6px; border-radius:5px;
+  border:1px solid var(--border); background:var(--panel2);
+  cursor:pointer; text-align:center; transition:all .15s;
+}
+.fmt-c:hover { border-color:var(--accent); }
+.fmt-c.sel { border-color:var(--accent); background:rgba(0,197,255,.1); }
+.fmt-c .fi { font-size:20px; display:block; margin-bottom:3px; }
+.fmt-c .fn { font-size:11px; color:var(--text); font-weight:600; }
+.fmt-c .fd { font-size:9px; color:var(--text3); }
+.tog-row {
+  display:flex; align-items:center; gap:10px;
+  background:var(--panel2); border:1px solid var(--border);
+  border-radius:5px; padding:10px 12px; cursor:pointer;
+  margin-bottom:14px; transition:border .15s;
+}
+.tog-row:hover { border-color:var(--accent); }
+.tog-row input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
+.tog-tl { font-size:12px; color:var(--text); flex:1; font-weight:600; }
+.tog-td { font-size:10px; color:var(--text3); }
+.dl-btn {
+  width:100%; height:38px; border:none; border-radius:5px;
+  background:var(--accent); color:#000;
+  font-size:13px; font-family:'Cairo',sans-serif; font-weight:700;
+  cursor:pointer; transition:opacity .15s;
+}
+.dl-btn:hover { opacity:.85; }
+.dl-btn:disabled { opacity:.4; cursor:not-allowed; }
+#dl-prog-wrap { margin-top:10px; display:none; }
+.prog-tr { background:var(--panel2); border-radius:3px; height:6px; overflow:hidden; border:1px solid var(--border); }
+.prog-fl { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:3px; transition:width .2s; width:0; }
+#dl-prog-txt { font-size:10px; color:var(--text3); margin-top:4px; text-align:center; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--accent); }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.blink { animation:blink 1.2s infinite; }
+.gis-lrow { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;
+  cursor:pointer;font-size:13px;font-family:'Cairo',sans-serif;gap:12px;
+  border-bottom:1px solid var(--border); }
+.gis-lrow:last-child { border:none; }
+.gis-lrow:hover { background:var(--panel2); }
+.dtgl { width:36px;height:20px;border-radius:10px;background:var(--border);position:relative;
+  transition:background .2s;flex-shrink:0; }
+.dtgl.on { background:#1565C0; }
+.dtgl::after { content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;
+  border-radius:50%;background:#fff;transition:left .2s; }
+.dtgl.on::after { left:19px; }
+</style>
+</head>
+<body data-theme="dark">
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="h-brand">
+    <div class="h-logo">🛰️</div>
+    <div>
+      <div class="h-title">GIS Survey</div>
+      <div class="h-sub">Field Data Dashboard</div>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi"><div class="n" id="s-total">—</div><div class="l">إجمالي السجلات</div></div>
+    <div class="kpi"><div class="n" id="s-days">—</div><div class="l">أيام العمل</div></div>
+    <div class="kpi"><div class="n" id="s-typed">—</div><div class="l">مصنّفة</div></div>
+    <div class="kpi"><div class="n" id="s-srv">—</div><div class="l">المساحون</div></div>
+    <div class="kpi" style="--accent:var(--green)"><div class="n" id="s-floors" style="color:var(--green)">—</div><div class="l">لها أدوار</div></div>
+  </div>
+
+  <div class="h-actions">
+    <div style="display:flex;align-items:center;gap:6px;padding:0 10px;border-left:1px solid var(--border);height:100%;">
+      <span style="font-size:10px;color:var(--text3);">👁 الزيارات:</span>
+      <span id="visit-count" style="font-size:13px;font-weight:700;color:var(--accent);">—</span>
+      <span style="font-size:10px;color:var(--text3);margin-right:8px;">آخر دخول:</span>
+      <span id="last-visit" style="font-size:11px;color:var(--text2);">—</span>
+    </div>
+    <button class="hbtn" onclick="openAttr()">📋 الجدول</button>
+    <button class="hbtn" onclick="openDl()">📥 تحميل</button>
+    <button class="hbtn" id="track-btn" onclick="toggleTrack()">🛤️ المسار</button>
+    <button class="hbtn" id="photos-map-btn" onclick="togglePhotoMap()">🖼️ الصور</button>
+    <button class="hbtn" id="sel-mode-btn" onclick="toggleSelectMode()">🔲 تحديد</button>
+    <button class="hbtn" id="poly-mode-btn" onclick="togglePolySelect()">⬡ تحديد منطقة</button>
+    <button class="hbtn act" onclick="loadData()">🔄</button>
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()" title="ثيم">🌙</button>
+    <span id="last-upd" class="blink">تحميل...</span>
+    <div style="width:1px;height:32px;background:var(--border);margin:0 6px;flex-shrink:0;"></div>
+    <div id="user-info" style="display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;">
+      <div id="user-avatar" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;
+           background:linear-gradient(135deg,#0d1b2a,#1565C0);
+           border:2px solid rgba(0,197,255,0.45);
+           display:flex;align-items:center;justify-content:center;
+           box-shadow:0 0 8px rgba(0,197,255,0.25);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="8" r="3.5" stroke="#00c5ff" stroke-width="1.8"/>
+          <path d="M5 20c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="#00c5ff" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="19" cy="7" r="1.5" fill="#00e5ff" opacity=".7"/>
+          <circle cx="5" cy="7" r="1.5" fill="#00e5ff" opacity=".7"/>
+          <line x1="17.5" y1="7" x2="15" y2="8.5" stroke="#00e5ff" stroke-width="1.2" opacity=".6"/>
+          <line x1="6.5" y1="7" x2="9" y2="8.5" stroke="#00e5ff" stroke-width="1.2" opacity=".6"/>
+        </svg>
+      </div>
+      <div style="line-height:1.3;">
+        <div id="user-name" style="font-size:12px;font-weight:700;color:var(--text);
+             max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</div>
+        <div id="user-role" style="font-size:10px;color:var(--accent);font-weight:600;">—</div>
+      </div>
+      <button onclick="doLogout()" title="تسجيل خروج"
+        style="background:rgba(244,67,54,0.12);border:1px solid rgba(244,67,54,0.35);
+               color:#f44336;border-radius:7px;padding:4px 8px;cursor:pointer;
+               font-size:11px;font-family:Cairo,sans-serif;white-space:nowrap;"
+        onmouseover="this.style.background='rgba(244,67,54,0.28)'"
+        onmouseout="this.style.background='rgba(244,67,54,0.12)'">↩ خروج</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ LOGIN OVERLAY ═══ -->
+<div id="login-ov" style="display:none;position:fixed;inset:0;z-index:999999;
+     background:linear-gradient(160deg,#0d1117,#1a2332);
+     align-items:center;justify-content:center;font-family:Cairo,sans-serif">
+  <div style="background:#1e2a3a;border:1px solid #2d3f55;border-radius:20px;
+              padding:36px 32px;width:100%;max-width:360px;text-align:center">
+    <div style="font-size:52px;margin-bottom:8px">🛰️</div>
+    <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:4px">GIS Survey</div>
+    <div style="font-size:12px;color:#607d9e;margin-bottom:28px">لوحة تحكم المسح الميداني</div>
+    <input id="login-email" type="email" placeholder="البريد الإلكتروني" value="mohamed.gamal.shokry88@gmail.com"
+      style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
+             border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
+             margin-bottom:10px;outline:none;text-align:right"/>
+    <input id="login-pass" type="password" placeholder="كلمة المرور"
+      style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
+             border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
+             margin-bottom:14px;outline:none;text-align:right"
+      onkeydown="if(event.key==='Enter')doLogin()"/>
+    <div id="login-err" style="color:#f44336;font-size:12px;margin-bottom:10px;min-height:16px"></div>
+    <button id="login-btn" onclick="doLogin()"
+      style="width:100%;padding:13px;border-radius:10px;border:none;
+             background:linear-gradient(135deg,#1565C0,#00c5ff);color:#fff;
+             font-family:Cairo,sans-serif;font-size:15px;font-weight:700;cursor:pointer">
+      دخول 🔐
+    </button>
+  </div>
+</div>
+
+<!-- ═══ GIS LAYERS DROPDOWN ═══ -->
+<div id="gis-dropdown" style="display:none;position:fixed;
+     background:var(--panel);border:1px solid var(--border);border-radius:10px;
+     min-width:210px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.6);overflow:hidden">
+  <div class="gis-lrow" onclick="dashToggleGis('allRoads')">
+    <span>🛣️ الطرق الرئيسية</span>
+    <div class="dtgl" id="dtgl-allRoads"></div>
+  </div>
+  <div class="gis-lrow" onclick="dashToggleGis('ringRoads')">
+    <span>🔴 الطرق الدائرية</span>
+    <div class="dtgl" id="dtgl-ringRoads"></div>
+  </div>
+  <div class="gis-lrow" onclick="dashToggleGis('haramZones')">
+    <span>🟢 نطاقات الحرم</span>
+    <div class="dtgl" id="dtgl-haramZones"></div>
+  </div>
+  <div class="gis-lrow" onclick="dashToggleGis('ishrafiZone')">
+    <span>🟩 نطاق الإشراف</span>
+    <div class="dtgl" id="dtgl-ishrafiZone"></div>
+  </div>
+</div>
+
+<!-- ═══ BODY ═══ -->
+<div class="body-wrap">
+
+  <!-- ── Left Panel ── -->
+  <div class="side">
+
+    <div class="side-sect">
+      <div class="sect-head">
+        <span>المساحون</span>
+        <span class="sect-badge" id="srv-badge">0</span>
+      </div>
+      <div id="surveyor-list"></div>
+    </div>
+
+    <div class="rec-head">
+      <span>آخر السجلات</span>
+    </div>
+    <div id="records-list"></div>
+
+    <div class="side-sect" style="padding-bottom:8px;">
+      <div class="sect-head"><span>توزيع الأنواع</span></div>
+      <div id="type-bars"></div>
+    </div>
+
+    <div class="side-foot">
+      <button class="ref-btn" onclick="loadData()">🔄 تحديث البيانات</button>
+    </div>
+  </div>
+
+  <!-- ── Map + Attr Panel ── -->
+  <div class="map-area">
+    <div class="map-wrap" style="position:relative">
+      <div id="map"></div>
+      <div style="position:absolute;top:10px;right:10px;z-index:1000;">
+        <button id="gis-layers-btn" onclick="toggleGisDropdown()"
+          style="background:rgba(36,36,36,.92);border:1px solid #3a3a3a;color:#b0b0b0;
+                 padding:7px 13px;border-radius:8px;cursor:pointer;font-family:Cairo,sans-serif;
+                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+          🗂️ الطبقات
+        </button>
+      </div>
+    </div>
+
+    <!-- Attribute panel (bottom) -->
+    <div class="attr-panel" id="attr-panel">
+      <div class="mhdr">
+        <h3>📋 جدول البيانات الكامل</h3>
+        <input id="attr-search" type="text" placeholder="🔍 بحث..." oninput="filterAttr(this.value)"/>
+        <input id="attr-date" type="date" title="فلتر بالتاريخ" oninput="filterAttr(document.getElementById('attr-search').value)"
+          style="background:var(--panel2);border:1px solid var(--border);color:var(--text);
+                 padding:5px 8px;border-radius:6px;font-family:Cairo,sans-serif;font-size:12px;cursor:pointer"/>
+        <select id="attr-srv" onchange="filterAttr(document.getElementById('attr-search').value)"
+          style="background:var(--panel2);border:1px solid var(--border);color:var(--text);
+                 padding:5px 8px;border-radius:6px;font-family:Cairo,sans-serif;font-size:12px;cursor:pointer">
+          <option value="">👥 كل المساحين</option>
+        </select>
+        <button class="hbtn" onclick="downloadCSV()">📥 CSV</button>
+        <button class="mclose" onclick="closeAttr()">✕</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('id')">#</th>
+              <th onclick="sortBy('captured_at')">التاريخ ↕</th>
+              <th onclick="sortBy('surveyor_name')">المساح ↕</th>
+              <th onclick="sortBy('building_type')">النوع ↕</th>
+              <th onclick="sortBy('floors')">الأدوار ↕</th>
+              <th onclick="sortBy('road_name')">المحور / الطريق ↕</th>
+              <th onclick="sortBy('notes')">ملاحظات ↕</th>
+              <th>الإحداثيات</th>
+              <th>صورة</th>
+              <th>مقارنة</th>
+              <th>حذف</th>
+            </tr>
+          </thead>
+          <tbody id="attr-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="poly-hint">
+  <span id="poly-hint-txt">اضغط لإضافة نقاط</span>
+  &nbsp;
+  <button onclick="polyFinish()" style="background:#00c5ff;border:none;border-radius:12px;padding:3px 12px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;font-size:12px;">✓ إنهاء</button>
+  <button onclick="stopPolyMode()" style="background:rgba(255,255,255,.2);border:none;border-radius:12px;padding:3px 10px;cursor:pointer;font-family:Cairo,sans-serif;font-size:12px;color:#000;">✕</button>
+</div>
+
+<!-- ═══ SELECTION BAR ═══ -->
+<div id="sel-bar">
+  <span>✅ <span id="sel-count">0</span> نقطة محددة</span>
+  <button onclick="dlSelected()">📥 تنزيل المحدد</button>
+  <button onclick="clearSelection()">✕ إلغاء</button>
+</div>
+
+<!-- ═══ LIGHTBOX ═══ -->
+<div id="lightbox" class="ov" onclick="if(event.target===this)closeLb()">
+  <img id="lb-img" src="" alt=""/>
+  <button id="lb-dl" onclick="dlPhoto()">📥 تحميل الصورة</button>
+</div>
+
+<!-- ═══ COMPARISON ═══ -->
+<div id="cmp-ov" class="ov" onclick="if(event.target===this)closeCmp()">
+  <div class="mbox" onclick="event.stopPropagation()">
+    <div class="mhdr">
+      <h3>🛰️ قمر صناعي ↔ صورة ميدانية</h3>
+      <button class="mclose" onclick="closeCmp()">✕</button>
+    </div>
+    <div class="cmp-body">
+      <div class="cmp-pane">
+        <div class="cmp-lbl">🛰️ قمر صناعي</div>
+        <div id="cmp-map"></div>
+      </div>
+      <div class="cmp-div"></div>
+      <div class="cmp-pane">
+        <div class="cmp-lbl">📷 صورة ميدانية</div>
+        <img id="cmp-img" src="" alt=""/>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DOWNLOAD ═══ -->
+<div id="dl-ov" class="ov" onclick="if(event.target===this)closeDl()">
+  <div class="mbox" onclick="event.stopPropagation()">
+    <div class="mhdr">
+      <h3>📥 تحميل البيانات والصور</h3>
+      <button class="mclose" onclick="closeDl()">✕</button>
+    </div>
+    <div class="dl-body">
+      <div class="dl-info">تحميل <strong id="dl-cnt">0</strong> سجل — <strong id="dl-srv-lbl">الكل</strong></div>
+
+      <span class="dl-sect-lbl">صيغة الملف</span>
+      <div class="fmt-row">
+        <div class="fmt-c sel" id="fmt-xlsx" onclick="selFmt('xlsx')"><span class="fi">📊</span><div class="fn">Excel</div><div class="fd">.xlsx</div></div>
+        <div class="fmt-c"     id="fmt-csv"  onclick="selFmt('csv')"><span class="fi">📄</span><div class="fn">CSV</div><div class="fd">.csv</div></div>
+        <div class="fmt-c"     id="fmt-sqlite" onclick="selFmt('sqlite')"><span class="fi">🗄️</span><div class="fn">SQLite</div><div class="fd">.db</div></div>
+      </div>
+
+      <div class="tog-row" onclick="togPhotos()">
+        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation()"/>
+        <div>
+          <div class="tog-tl">📷 تضمين الصور (ZIP)</div>
+          <div class="tog-td">ملف مضغوط يحتوي البيانات + الصور</div>
+        </div>
+      </div>
+
+      <button class="dl-btn" id="dl-btn" onclick="startDl()">📥 تحميل الآن</button>
+      <div id="dl-prog-wrap">
+        <div class="prog-tr"><div class="prog-fl" id="dl-prog-fl"></div></div>
+        <div id="dl-prog-txt"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────
+const SB_URL = "https://vybhexgaslqexppvwzcd.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5YmhleGdhc2xxZXhwcHZ3emNkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzY4OTgzMSwiZXhwIjoyMDg5MjY1ODMxfQ.4KgEcjzPf-qbusffUaUquJNXiBVSySDDhLXisIh93v4";
+const HDR = { apikey:SB_KEY, Authorization:"Bearer "+SB_KEY };
+const sbClient = supabase.createClient(SB_URL, SB_KEY);
+
+async function sbGet(path) {
+  const r = await fetch(SB_URL+path, {headers:HDR});
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Auth ─────────────────────────────────────────
+const ADMIN_EMAIL = 'mohamed.gamal.shokry88@gmail.com';
+let currentIsAdmin = false;
+let _sessionToken = null;
+let _sessionCheckInterval = null;
+
+function _genToken() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+async function _registerSession(userId) {
+  _sessionToken = _genToken();
+  localStorage.setItem('dash_st_' + userId, _sessionToken);
+  await sbClient.from('active_sessions').upsert({
+    user_id: userId,
+    session_token: _sessionToken,
+    updated_at: new Date().toISOString()
+  });
+}
+
+async function _checkSession(userId) {
+  const local = localStorage.getItem('dash_st_' + userId);
+  if (!local) { _forceLogout(); return; }
+  const { data } = await sbClient.from('active_sessions')
+    .select('session_token').eq('user_id', userId).single();
+  if (!data || data.session_token !== local) {
+    _forceLogout('تم فتح الجلسة على جهاز آخر. سيتم تسجيل خروجك.');
+  }
+}
+
+function _forceLogout(msg) {
+  clearInterval(_sessionCheckInterval);
+  if (msg) alert(msg);
+  sbClient.auth.signOut().then(() => {
+    document.getElementById('login-ov').style.display = 'flex';
+  });
+}
+
+async function checkAuth() {
+  const { data:{ session } } = await sbClient.auth.getSession();
+  if (!session) { document.getElementById('login-ov').style.display='flex'; return; }
+  document.getElementById('login-ov').style.display='none';
+  const email = session.user.email;
+  const userId = session.user.id;
+  currentIsAdmin = email === ADMIN_EMAIL;
+  const namePart = email.split('@')[0].replace(/[._]/g,' ');
+  document.getElementById('user-name').textContent = namePart;
+  document.getElementById('user-role').textContent = currentIsAdmin ? '👑 مدير النظام' : '👷 مساح';
+  // hide admin-only buttons for non-admins
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = currentIsAdmin ? '' : 'none';
+  });
+  // single-session enforcement
+  await _registerSession(userId);
+  clearInterval(_sessionCheckInterval);
+  _sessionCheckInterval = setInterval(() => _checkSession(userId), 20000);
+  await logVisit(email);
+  loadAnalytics();
+  loadData();
+  setInterval(loadData, 30000);
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-err');
+  if (!email || !pass) { err.textContent='❌ أدخل الإيميل وكلمة المرور'; return; }
+  btn.disabled=true; btn.textContent='جاري الدخول...'; err.textContent='';
+  const { error } = await sbClient.auth.signInWithPassword({ email, password:pass });
+  if (error) {
+    err.textContent = '❌ بيانات خاطئة';
+    btn.disabled=false; btn.textContent='دخول 🔐';
+  } else {
+    checkAuth();
+  }
+}
+
+async function doLogout() {
+  await sbClient.auth.signOut();
+  document.getElementById('login-ov').style.display='flex';
+}
+
+async function logVisit(email) {
+  const sid = crypto.randomUUID();
+  await fetch(`${SB_URL}/rest/v1/dashboard_visits`, {
+    method:'POST',
+    headers:{...HDR,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body: JSON.stringify({ user_email:email, browser:navigator.userAgent.substring(0,120), session_id:sid })
+  }).catch(()=>{});
+}
+
+async function loadAnalytics() {
+  try {
+    const data = await sbGet('/rest/v1/dashboard_visits?select=id,visited_at,user_email&order=visited_at.desc&limit=500');
+    document.getElementById('visit-count').textContent = data.length;
+    if (data[0]) {
+      const d = new Date(data[0].visited_at);
+      document.getElementById('last-visit').textContent =
+        d.toLocaleDateString('ar-EG')+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    }
+  } catch(_) {}
+}
+
+// ── Theme ────────────────────────────────────────
+let dark = true;
+function toggleTheme() {
+  dark = !dark;
+  document.body.setAttribute('data-theme', dark?'dark':'light');
+  document.getElementById('tbtn').textContent = dark?'🌙':'☀️';
+}
+
+// ── State ────────────────────────────────────────
+let allData=[], filtered=[], activeSrv='all';
+let sortCol='captured_at', sortAsc=false, srchTerm='';
+
+// ── Map ──────────────────────────────────────────
+const map = L.map('map').setView([21.3891,39.8579],13);
+const baseStreet = L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google',maxZoom:19});
+const baseSat    = L.tileLayer('https://mt1.google.com/vt/lyrs=s&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google Satellite',maxZoom:20});
+baseSat.addTo(map);
+L.control.layers({'🗺️ خريطة':baseStreet,'🛰️ قمر صناعي':baseSat},{},{position:'topleft'}).addTo(map);
+const mLayer = L.layerGroup().addTo(map);
+const trackLayer = L.layerGroup().addTo(map);
+const photoMapLayer = L.layerGroup().addTo(map);
+let showTrack = false;
+let showPhotoMap = false;
+let selectMode = false;
+let selectedIds = new Set();
+let polyMode = false;
+let polyPts = [];
+let polyLayer = L.layerGroup().addTo(map);
+let polyLine = null;
+let polyPreview = null;
+let markerById = {};
+let cmpMap=null;
+
+// ── Type colors ──────────────────────────────────
+const TC = {
+  'سكني':'#00c5ff','تجاري':'#ff9800','سكني تجاري':'#ab47bc',
+  'إداري':'#26a69a','صناعي':'#ffd600','ديني':'#71c96e',
+  'تعليمي':'#f06292','صحي':'#29b6f6','مختلط':'#a1887f','أخرى':'#78909c',
+};
+const tc = t => TC[t]||'#90a4ae';
+
+function mkIcon(t) {
+  const c = tc(t);
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:12px;height:12px;background:${c};border:2px solid rgba(255,255,255,.9);border-radius:50%;box-shadow:0 0 8px ${c}bb,0 0 3px rgba(0,0,0,.5)"></div>`,
+    iconSize:[12,12],iconAnchor:[6,6]
+  });
+}
+
+// ── Load ─────────────────────────────────────────
+async function loadData() {
+  const el = document.getElementById('last-upd');
+  el.textContent='تحميل...'; el.classList.add('blink');
+  try {
+    allData = await sbGet('/rest/v1/surveys?select=*&order=captured_at.desc');
+    applyFilter();
+    el.textContent = new Date().toLocaleTimeString('ar');
+    el.classList.remove('blink');
+  } catch(e) {
+    el.textContent='⚠️ خطأ';
+    el.classList.remove('blink');
+  }
+}
+
+function applyFilter() {
+  filtered = activeSrv==='all' ? [...allData]
+    : allData.filter(r=>(r.surveyor_name||'غير محدد')===activeSrv);
+  renderStats(); renderSurveyors(); renderMap(); renderList(); renderChart(); drawTrack(); drawPhotoMap();
+}
+
+// ── Stats ─────────────────────────────────────────
+function renderStats() {
+  const d = filtered;
+  const srvs = new Set(allData.map(r=>r.surveyor_name||'غير محدد'));
+  document.getElementById('s-total').textContent  = d.length;
+  document.getElementById('s-days').textContent   = new Set(d.map(r=>r.captured_at?.substring(0,10)).filter(Boolean)).size;
+  document.getElementById('s-typed').textContent  = d.filter(r=>r.building_type).length;
+  document.getElementById('s-srv').textContent    = srvs.size;
+  document.getElementById('s-floors').textContent = d.filter(r=>r.floors!=null).length;
+}
+
+// ── Surveyors ─────────────────────────────────────
+function renderSurveyors() {
+  const cnt={};
+  allData.forEach(r=>{const n=r.surveyor_name||'غير محدد';cnt[n]=(cnt[n]||0)+1;});
+  const list = Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('srv-badge').textContent = list.length;
+  document.getElementById('surveyor-list').innerHTML =
+    `<div class="sv-item ${activeSrv==='all'?'active':''}" onclick="setSrv('all')">
+       <div class="sv-n"><span>👥</span><span>الكل</span></div>
+       <span class="sv-cnt">${allData.length}</span>
+     </div>`+
+    list.map(([n,c])=>`
+      <div class="sv-item ${activeSrv===n?'active':''}" onclick="setSrv('${n}')">
+        <div class="sv-n"><span>👤</span><span>${n}</span></div>
+        <span class="sv-cnt">${c}</span>
+      </div>`).join('');
+}
+function setSrv(n){activeSrv=n;applyFilter();}
+
+// ── Map ───────────────────────────────────────────
+function renderMap() {
+  mLayer.clearLayers();
+  markerById={};
+  const bounds=[];
+  filtered.forEach((r,i)=>{
+    if(!r.latitude||!r.longitude) return;
+    const img = r.photo_url
+      ? `<img src="${r.photo_url}" onclick="openLb('${r.photo_url}')" style="width:100%;border-radius:4px;margin-bottom:6px;cursor:zoom-in;display:block"/>`
+      : r.thumbnail
+        ? `<img src="data:image/jpeg;base64,${r.thumbnail}" style="width:100%;border-radius:4px;margin-bottom:6px;display:block"/>`
+        : '';
+    const cmpBtn = r.photo_url
+      ? `<button onclick="openCmp(${i})" style="margin-top:4px;padding:4px 10px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:11px;width:100%;font-family:Cairo,sans-serif;font-weight:700">🛰️ مقارنة</button>`
+      : '';
+    const isSelected = selectedIds.has(r.id);
+    const marker = L.marker([r.latitude,r.longitude],{icon:mkIcon(r.building_type)});
+    if(isSelected) marker.getElement && marker.once('add',()=>marker.getElement()?.classList.add('marker-selected'));
+    marker.bindPopup(`<div style="font-family:Cairo,sans-serif;direction:rtl;min-width:210px;font-size:12px;color:#eee">
+        ${img}
+        <b style="color:#00c5ff;font-size:13px">${r.building_type||'غير محدد'}</b><br>
+        أدوار: ${r.floors||'—'} | مساح: ${r.surveyor_name||'—'}<br>
+        <small style="color:#888">${r.captured_at?.substring(0,16).replace('T',' ')||''}</small><br>
+        <small style="color:#666">${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}</small>
+        ${cmpBtn}
+      </div>`)
+      .on('popupopen', () => highlightRow(r.id))
+      .on('click', (e) => {
+        if(!selectMode) return;
+        L.DomEvent.stopPropagation(e);
+        marker.closePopup();
+        if(selectedIds.has(r.id)){
+          selectedIds.delete(r.id);
+          marker.getElement()?.classList.remove('marker-selected');
+        } else {
+          selectedIds.add(r.id);
+          marker.getElement()?.classList.add('marker-selected');
+        }
+        updateSelBar();
+      })
+      .addTo(mLayer);
+    markerById[r.id]=marker;
+    if(isSelected) setTimeout(()=>marker.getElement()?.classList.add('marker-selected'),50);
+    bounds.push([r.latitude,r.longitude]);
+  });
+  if(bounds.length) map.fitBounds(bounds,{padding:[30,30]});
+}
+
+// ── GIS Layers ────────────────────────────────────
+const RING_COLORS = { 1:'#E53935', 2:'#E91E63', 3:'#8E24AA', 4:'#1E88E5', 5:'#00ACC1' };
+const dashGisLayers = {
+  allRoads:   { loaded:false, visible:false, layers:[] },
+  ringRoads:  { loaded:false, visible:false, layers:[] },
+  haramZones: { loaded:false, visible:false, layers:[] },
+  ishrafiZone:{ loaded:false, visible:false, layers:[] },
+};
+
+function toggleGisDropdown() {
+  const d = document.getElementById('gis-dropdown');
+  if (d.style.display === 'none') {
+    const btn = document.getElementById('gis-layers-btn');
+    const rect = btn.getBoundingClientRect();
+    d.style.left = rect.left + 'px';
+    d.style.top = (rect.bottom + 4) + 'px';
+    d.style.display = 'block';
+  } else {
+    d.style.display = 'none';
+  }
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#gis-layers-btn') && !e.target.closest('#gis-dropdown'))
+    document.getElementById('gis-dropdown').style.display = 'none';
+});
+
+async function dashToggleGis(name) {
+  const g = dashGisLayers[name];
+  if (!g.loaded) {
+    document.getElementById('dtgl-'+name).textContent = '...';
+    await dashLoadGis(name);
+  } else {
+    g.visible = !g.visible;
+    g.layers.forEach(l => g.visible ? l.addTo(map) : map.removeLayer(l));
+    updateDtgl(name);
+  }
+}
+
+async function dashLoadGis(name) {
+  const g = dashGisLayers[name];
+  const toLL = c => [c[1], c[0]];
+  function geomLines(geom) {
+    if (!geom) return [];
+    if (geom.type === 'LineString') return [geom.coordinates.map(toLL)];
+    if (geom.type === 'MultiLineString') return geom.coordinates.map(s => s.map(toLL));
+    return [];
+  }
+  function geomRings(geom) {
+    if (!geom) return [];
+    if (geom.type === 'Polygon') return [geom.coordinates[0].map(toLL)];
+    if (geom.type === 'MultiPolygon') return geom.coordinates.map(p => p[0].map(toLL));
+    return [];
+  }
+  function parseGeom(raw) { return typeof raw === 'string' ? JSON.parse(raw) : raw; }
+
+  try {
+    const layers = [];
+    if (name === 'allRoads') {
+      const rows = await sbGet('/rest/v1/all_roads?select=road_name,geom');
+      for (const r of rows||[]) {
+        for (const coords of geomLines(parseGeom(r.geom))) {
+          const pl = L.polyline(coords, {color:'#FFD600',weight:2.5,opacity:0.9}).addTo(map);
+          if (r.road_name) pl.bindPopup(`<b style="font-family:Cairo,sans-serif">${r.road_name}</b>`);
+          layers.push(pl);
+        }
+      }
+    } else if (name === 'ringRoads') {
+      const rows = await sbGet('/rest/v1/ring_roads?select=ring_number,ring_name,geom');
+      for (const r of rows||[]) {
+        for (const coords of geomLines(parseGeom(r.geom))) {
+          const color = RING_COLORS[r.ring_number]||'#E53935';
+          const pl = L.polyline(coords, {color,weight:3,opacity:0.9}).addTo(map);
+          if (r.ring_name) pl.bindTooltip(r.ring_name);
+          layers.push(pl);
+        }
+      }
+    } else if (name === 'haramZones') {
+      const rows = await sbGet('/rest/v1/haram_zones?select=zone_name,geom');
+      for (const r of rows||[]) {
+        for (const ring of geomRings(parseGeom(r.geom))) {
+          const pg = L.polygon(ring, {color:'#4CAF50',fillColor:'#4CAF50',fillOpacity:0.12,weight:2}).addTo(map);
+          if (r.zone_name) pg.bindTooltip(r.zone_name);
+          layers.push(pg);
+        }
+      }
+    } else if (name === 'ishrafiZone') {
+      const rows = await sbGet('/rest/v1/ishrafi_zone?select=zone_name,geom');
+      for (const r of rows||[]) {
+        for (const ring of geomRings(parseGeom(r.geom))) {
+          const pg = L.polygon(ring, {color:'#4CAF50',fillColor:'#4CAF50',fillOpacity:0.15,weight:2.5}).addTo(map);
+          pg.bindTooltip('نطاق الإشراف');
+          layers.push(pg);
+        }
+      }
+    }
+    g.layers = layers; g.loaded = true; g.visible = true;
+    updateDtgl(name);
+  } catch(e) { console.error(e); }
+}
+
+function updateDtgl(name) {
+  document.getElementById('dtgl-'+name).className = 'dtgl' + (dashGisLayers[name].visible ? ' on' : '');
+}
+
+// ── Highlight row in attribute table ─────────────
+function highlightRow(id) {
+  // لو الجدول مش مفتوح افتحه
+  const panel = document.getElementById('attr-panel');
+  if (!panel.classList.contains('open')) {
+    openAttr();
+  }
+  // ازل الـ selected السابق
+  document.querySelectorAll('#attr-body tr.selected').forEach(el => el.classList.remove('selected'));
+  // ابحث عن الصف
+  const row = document.querySelector(`#attr-body tr[data-id="${id}"]`);
+  if (row) {
+    row.classList.add('selected');
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// ── Track ─────────────────────────────────────────
+function toggleTrack() {
+  showTrack = !showTrack;
+  document.getElementById('track-btn').classList.toggle('act', showTrack);
+  drawTrack();
+  if(showTrack) map.on('zoomend moveend', drawTrack);
+  else map.off('zoomend moveend', drawTrack);
+}
+function drawTrack() {
+  trackLayer.clearLayers();
+  if (!showTrack) return;
+  // رسم مسار لكل مساح بلون مختلف
+  const colors = ['#00c5ff','#71c96e','#ff9800','#ab47bc','#f06292','#ffd600','#29b6f6'];
+  const byName = {};
+  const ordered = [...filtered].sort((a,b)=>(a.captured_at||'').localeCompare(b.captured_at||''));
+  ordered.forEach(r => {
+    if (!r.latitude || !r.longitude) return;
+    const n = r.surveyor_name || 'غير محدد';
+    if (!byName[n]) byName[n] = [];
+    byName[n].push([r.latitude, r.longitude]);
+  });
+  Object.entries(byName).forEach(([name, pts], idx) => {
+    if (pts.length < 2) return;
+    const color = colors[idx % colors.length];
+    L.polyline(pts, { color, weight: 3, opacity: 0.85, dashArray: '6,4' })
+      .bindTooltip(name, { sticky: true, direction: 'top' })
+      .addTo(trackLayer);
+    // سهام الاتجاه على كل segment
+    for(let i=0;i<pts.length-1;i++){
+      const p1=map.latLngToContainerPoint(pts[i]);
+      const p2=map.latLngToContainerPoint(pts[i+1]);
+      const dx=p2.x-p1.x, dy=p2.y-p1.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<40) continue; // متقريبين — ماتحطش سهم
+      const angle=Math.atan2(dy,dx)*180/Math.PI;
+      const mid=[(pts[i][0]+pts[i+1][0])/2,(pts[i][1]+pts[i+1][1])/2];
+      L.marker(mid,{
+        icon:L.divIcon({
+          className:'',
+          html:`<div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid ${color};transform:rotate(${angle+90}deg);transform-origin:center;opacity:.9;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))"></div>`,
+          iconSize:[14,13],iconAnchor:[7,6]
+        }),
+        interactive:false
+      }).addTo(trackLayer);
+    }
+  });
+}
+
+// ── Photo Map ─────────────────────────────────────
+function togglePhotoMap() {
+  showPhotoMap = !showPhotoMap;
+  document.getElementById('photos-map-btn').classList.toggle('act', showPhotoMap);
+  drawPhotoMap();
+}
+function drawPhotoMap() {
+  photoMapLayer.clearLayers();
+  if (!showPhotoMap) return;
+  filtered.forEach((r, i) => {
+    if (!r.latitude || !r.longitude || !r.photo_url) return;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:52px;height:52px;border-radius:8px;border:2px solid #fff;
+             overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.7);cursor:pointer">
+             <img src="${r.photo_url}" style="width:100%;height:100%;object-fit:cover"/></div>`,
+      iconSize: [52, 52], iconAnchor: [26, 26]
+    });
+    L.marker([r.latitude, r.longitude], { icon })
+      .on('click', () => openLb(r.photo_url))
+      .addTo(photoMapLayer);
+  });
+}
+
+// ── Records ───────────────────────────────────────
+function renderList() {
+  document.getElementById('records-list').innerHTML =
+    filtered.slice(0,100).map((r,i)=>{
+      const th = r.photo_url
+        ? `<img class="rec-img" src="${r.photo_url}" onclick="event.stopPropagation();openLb('${r.photo_url}')"/>`
+        : r.thumbnail
+          ? `<img class="rec-img" src="data:image/jpeg;base64,${r.thumbnail}" onclick="event.stopPropagation();openLb('data:image/jpeg;base64,${r.thumbnail}')"/>`
+          : `<div class="rec-ph">📷</div>`;
+      return `<div class="rec" onclick="focusRec(${i})">
+        ${th}
+        <div class="rec-info">
+          <div class="rec-date">${r.captured_at?.substring(0,16).replace('T',' ')||'—'}</div>
+          <div class="rec-type" style="color:${tc(r.building_type)}">${r.building_type||'غير محدد'}${r.floors?' · '+r.floors+' أدوار':''}</div>
+          <div class="rec-loc">📍 ${r.latitude?.toFixed(4)||'?'}, ${r.longitude?.toFixed(4)||'?'}</div>
+          ${r.surveyor_name?`<div class="rec-who">👤 ${r.surveyor_name}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+}
+function focusRec(i){const r=filtered[i];if(r?.latitude)map.setView([r.latitude,r.longitude],18);}
+
+// ── Chart ─────────────────────────────────────────
+function renderChart() {
+  const cnt={};
+  filtered.forEach(r=>{const t=r.building_type||'غير محدد';cnt[t]=(cnt[t]||0)+1;});
+  const sorted=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  const max=sorted[0]?.[1]||1;
+  document.getElementById('type-bars').innerHTML = sorted.map(([t,c])=>`
+    <div class="bar-row">
+      <div class="bar-lbl">${t}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(c/max*100).toFixed(0)}%;background:${tc(t)}"></div></div>
+      <div class="bar-val">${c}</div>
+    </div>`).join('');
+}
+
+// ── Lightbox ──────────────────────────────────────
+let lbUrl='';
+function openLb(u){lbUrl=u;document.getElementById('lb-img').src=u;document.getElementById('lightbox').classList.add('open');}
+function closeLb(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lb-img').src='';}
+function dlPhoto(){const a=document.createElement('a');a.href=lbUrl;a.download=lbUrl.split('/').pop();a.target='_blank';a.click();}
+
+// ── Attr Panel (bottom) ──────────────────────────
+function openAttr(){
+  // ملء قائمة المساحين
+  const names = [...new Set(allData.map(r=>r.surveyor_name||'غير محدد'))].sort();
+  const sel = document.getElementById('attr-srv');
+  sel.innerHTML = '<option value="">👥 كل المساحين</option>' +
+    names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  renderAttr();
+  document.getElementById('attr-panel').classList.add('open');
+  map.invalidateSize();
+}
+function closeAttr(){document.getElementById('attr-panel').classList.remove('open');map.invalidateSize();}
+function filterAttr(v){srchTerm=v.toLowerCase();renderAttr();}
+function sortBy(col){if(sortCol===col)sortAsc=!sortAsc;else{sortCol=col;sortAsc=true;}renderAttr();}
+function renderAttr(){
+  let d=[...filtered];
+  const dateVal = document.getElementById('attr-date')?.value; // YYYY-MM-DD
+  const srvVal  = document.getElementById('attr-srv')?.value;
+  if(dateVal) d=d.filter(r=>(r.captured_at||'').startsWith(dateVal));
+  if(srvVal)  d=d.filter(r=>(r.surveyor_name||'غير محدد')===srvVal);
+  if(srchTerm) d=d.filter(r=>Object.values(r).some(v=>String(v||'').toLowerCase().includes(srchTerm)));
+  d.sort((a,b)=>{const av=a[sortCol]||'',bv=b[sortCol]||'';return sortAsc?(av>bv?1:-1):(av<bv?1:-1);});
+  document.getElementById('attr-body').innerHTML=d.map((r,i)=>{
+    const mi=filtered.indexOf(r);
+    const th=r.photo_url?`<img src="${r.photo_url}" onclick="openLb('${r.photo_url}')">`:
+              r.thumbnail?`<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLb('data:image/jpeg;base64,${r.thumbnail}')">` :'—';
+    const cb=r.photo_url?`<button onclick="openCmp(${mi})" style="padding:2px 8px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🛰️</button>`:'—';
+    const delBtn= currentIsAdmin
+      ? `<button onclick="confirmDelete('${r.id}','${(r.surveyor_name||'').replace(/'/g,"\\'")}','${(r.captured_at||'').substring(0,16).replace('T',' ')}')" style="padding:2px 8px;background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🗑️</button>`
+      : `<span style="color:var(--text3);font-size:10px;">—</span>`;
+    return `<tr data-id="${r.id}" onclick="highlightRow('${r.id}')">
+      <td class="num">${i+1}</td>
+      <td>${r.captured_at?.substring(0,16).replace('T',' ')||'—'}</td>
+      <td>${r.surveyor_name||'—'}</td>
+      <td style="color:${tc(r.building_type)};font-weight:600">${r.building_type||'—'}</td>
+      <td class="num">${r.floors??'—'}</td>
+      <td style="font-size:11px">${r.road_name||'—'}</td>
+      <td style="font-size:11px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.notes||''}">${r.notes||'—'}</td>
+      <td class="num" style="font-size:10px">${r.latitude?.toFixed(5)||'—'}, ${r.longitude?.toFixed(5)||'—'}</td>
+      <td>${th}</td><td>${cb}</td><td>${delBtn}</td></tr>`;
+  }).join('');
+}
+
+// ── Delete ────────────────────────────────────────
+function confirmDelete(id, surveyor, date){
+  if (!currentIsAdmin) { alert('ليس لديك صلاحية الحذف'); return; }
+  const ov = document.getElementById('del-ov');
+  document.getElementById('del-info').textContent = `${surveyor} — ${date}`;
+  ov.style.display='flex';
+  document.getElementById('del-confirm-btn').onclick = async ()=>{
+    ov.style.display='none';
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/surveys?id=eq.${id}`, {
+        method:'DELETE',
+        headers:{...HDR,'Content-Type':'application/json','Prefer':'return=minimal'}
+      });
+      if(!res.ok) throw new Error(await res.text());
+      allData = allData.filter(r=>r.id!==id);
+      applyFilter();
+      renderStats();
+      renderMap();
+      renderList();
+      renderAttr();
+    } catch(e){ alert('خطأ في الحذف: '+e.message); }
+  };
+}
+
+// ── Comparison ────────────────────────────────────
+function openCmp(i){
+  const r=filtered[i];if(!r)return;
+  document.getElementById('cmp-img').src=r.photo_url||`data:image/jpeg;base64,${r.thumbnail}`;
+  document.getElementById('cmp-ov').classList.add('open');
+  setTimeout(()=>{
+    if(!cmpMap){cmpMap=L.map('cmp-map',{zoomControl:true});L.tileLayer('https://mt1.google.com/vt/lyrs=s&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google',maxZoom:20}).addTo(cmpMap);}
+    cmpMap.setView([r.latitude,r.longitude],18);cmpMap.invalidateSize();L.marker([r.latitude,r.longitude]).addTo(cmpMap);
+  },100);
+}
+function closeCmp(){document.getElementById('cmp-ov').classList.remove('open');}
+
+// ── Download ──────────────────────────────────────
+let dlFmt='xlsx',dlPh=false;
+function openDl(){
+  document.getElementById('dl-cnt').textContent=filtered.length;
+  document.getElementById('dl-srv-lbl').textContent=activeSrv==='all'?'جميع المساحين':activeSrv;
+  document.getElementById('dl-prog-wrap').style.display='none';
+  document.getElementById('dl-btn').disabled=false;
+  document.getElementById('dl-ov').classList.add('open');
+}
+function closeDl(){document.getElementById('dl-ov').classList.remove('open');}
+function selFmt(f){dlFmt=f;['xlsx','csv','sqlite'].forEach(x=>document.getElementById('fmt-'+x).classList.toggle('sel',x===f));}
+function togPhotos(){const c=document.getElementById('dl-ph-chk');c.checked=!c.checked;dlPh=c.checked;}
+function setProg(cur,tot,msg){
+  document.getElementById('dl-prog-fl').style.width=(tot?Math.round(cur/tot*100):0)+'%';
+  document.getElementById('dl-prog-txt').textContent=msg||`${cur}/${tot}`;
+}
+async function blobToB64(blob){
+  return new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result.split(',')[1]);rd.readAsDataURL(blob);});
+}
+async function buildXLS(imgCache){
+  const wb=new ExcelJS.Workbook();wb.creator='GIS Survey';
+  const ws=wb.addWorksheet('المسح الميداني',{views:[{rightToLeft:true}]});
+  ws.columns=[
+    {header:'#',key:'n',width:6},{header:'التاريخ',key:'d',width:18},
+    {header:'المساح',key:'srv',width:14},{header:'النوع',key:'tp',width:14},
+    {header:'الأدوار',key:'fl',width:8},{header:'خط العرض',key:'lat',width:13},
+    {header:'خط الطول',key:'lng',width:13},{header:'المحور / الطريق',key:'rd',width:22},
+    {header:'ملاحظات',key:'nt',width:30},{header:'اسم الصورة',key:'pn',width:32},
+    {header:'رابط الصورة',key:'pu',width:55},{header:'الصورة',key:'img',width:16},
+  ];
+  const hdr=ws.getRow(1);
+  hdr.height=22;hdr.font={bold:true,color:{argb:'FF000000'}};
+  hdr.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF00C5FF'}};
+  hdr.alignment={vertical:'middle',horizontal:'center'};
+  for(let i=0;i<filtered.length;i++){
+    const r=filtered[i];const rn=i+2;
+    const photoFileName=r.photo_name||(r.photo_url?r.id+'.jpg':'');
+    const row=ws.addRow({n:i+1,d:r.captured_at?.substring(0,16).replace('T',' ')||'',srv:r.surveyor_name||'',tp:r.building_type||'',fl:r.floors??'',lat:r.latitude||'',lng:r.longitude||'',rd:r.road_name||'',nt:r.notes||'',pn:photoFileName,pu:r.photo_url||'',img:''});
+    row.height=72;row.alignment={vertical:'middle'};
+    const rowBg=i%2===0?'FFFFFFFF':'FFE8F4FD';
+    row.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+    row.font={color:{argb:'FF1a1a1a'}};
+    row.eachCell(cell=>{cell.border={bottom:{style:'thin',color:{argb:'FFDDDDDD'}}};});
+    // استخدام الكاش لو موجود، وإلا تحميل مباشر
+    const cached=imgCache?.get(r.id);
+    if(cached){
+      const id=wb.addImage({base64:cached.b64,extension:cached.ext});
+      ws.addImage(id,{tl:{col:9.05,row:rn-1+0.05},br:{col:10,row:rn},editAs:'oneCell'});
+    } else if(r.thumbnail){
+      const id=wb.addImage({base64:r.thumbnail,extension:'jpeg'});
+      ws.addImage(id,{tl:{col:9.05,row:rn-1+0.05},br:{col:10,row:rn},editAs:'oneCell'});
+    } else if(r.photo_url){
+      try{
+        const b64=await blobToB64(await(await fetch(r.photo_url)).blob());
+        const ext=r.photo_url.toLowerCase().includes('.png')?'png':'jpeg';
+        const id=wb.addImage({base64:b64,extension:ext});
+        ws.addImage(id,{tl:{col:9.05,row:rn-1+0.05},br:{col:10,row:rn},editAs:'oneCell'});
+      }catch(_){}
+    }
+    setProg(i+1,filtered.length,`معالجة ${i+1}/${filtered.length}`);
+  }
+  ws.autoFilter={from:{row:1,column:1},to:{row:filtered.length+1,column:ws.columns.length}};
+  return wb;
+}
+async function startDl(){
+  document.getElementById('dl-btn').disabled=true;
+  document.getElementById('dl-prog-wrap').style.display='block';
+  setProg(0,1,'جاري التجهيز...');
+  try{
+    if(dlPh) await dlZip();
+    else if(dlFmt==='xlsx'){setProg(0,filtered.length,'جاري بناء Excel...');const wb=await buildXLS();const buf=await wb.xlsx.writeBuffer();saveAs(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`gis_${new Date().toISOString().substring(0,10)}.xlsx`);}
+    else if(dlFmt==='csv') dlCSV();
+    else await dlSQLite();
+    setProg(1,1,'✅ اكتمل!');
+  }catch(e){setProg(0,1,'⚠️ '+e.message);}
+  document.getElementById('dl-btn').disabled=false;
+}
+function dlCSV(){
+  const cols=['id','captured_at','surveyor_name','building_type','floors','latitude','longitude','road_name','notes','photo_name','photo_url'];
+  const hdr=['المعرف','التاريخ','المساح','النوع','الأدوار','خط العرض','خط الطول','المحور / الطريق','ملاحظات','اسم الصورة','رابط الصورة'];
+  const rows=filtered.map(r=>cols.map(c=>{const v=r[c]??'';return String(v).includes(',')?`"${v}"`:v;}).join(','));
+  saveAs(new Blob(['\uFEFF'+[hdr.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'}),`gis_${new Date().toISOString().substring(0,10)}.csv`);
+  setProg(1,1,'✅ CSV');
+}
+async function dlSQLite(){
+  setProg(0,1,'تحميل SQLite...');
+  const SQL=await initSqlJs({locateFile:f=>`https://sql.js.org/dist/${f}`});
+  const db=new SQL.Database();
+  db.run(`CREATE TABLE surveys(id TEXT,captured_at TEXT,surveyor_name TEXT,building_type TEXT,floors INTEGER,latitude REAL,longitude REAL,photo_name TEXT,photo_url TEXT)`);
+  const st=db.prepare(`INSERT INTO surveys VALUES(?,?,?,?,?,?,?,?,?)`);
+  filtered.forEach(r=>st.run([r.id||null,r.captured_at||null,r.surveyor_name||null,r.building_type||null,r.floors??null,r.latitude||null,r.longitude||null,r.photo_name||null,r.photo_url||null]));
+  st.free();
+  saveAs(new Blob([db.export()],{type:'application/octet-stream'}),`gis_${new Date().toISOString().substring(0,10)}.db`);
+  setProg(1,1,'✅ SQLite');
+}
+async function dlZip(){
+  const zip=new JSZip();
+  const ph=filtered.filter(r=>r.photo_url||r.thumbnail);
+  const tot=ph.length;
+  // ── تحميل كل الصور مرة واحدة ──
+  const imgCache=new Map();
+  for(let i=0;i<ph.length;i++){
+    const r=ph[i];
+    setProg(i,tot,`تحميل صورة ${i+1}/${tot}`);
+    if(r.thumbnail){
+      imgCache.set(r.id,{b64:r.thumbnail,blob:null,ext:'jpeg'});
+    } else if(r.photo_url){
+      try{
+        const blob=await(await fetch(r.photo_url)).blob();
+        const b64=await blobToB64(blob);
+        const ext=r.photo_url.toLowerCase().includes('.png')?'png':'jpeg';
+        imgCache.set(r.id,{b64,blob,ext});
+      }catch(_){}
+    }
+  }
+  // ── بناء ملف البيانات مع الصور من الكاش ──
+  if(dlFmt==='xlsx'){const wb=await buildXLS(imgCache);zip.file('data.xlsx',await wb.xlsx.writeBuffer());}
+  else if(dlFmt==='sqlite'){const SQL=await initSqlJs({locateFile:f=>`https://sql.js.org/dist/${f}`});const db=new SQL.Database();db.run(`CREATE TABLE surveys(id TEXT,captured_at TEXT,surveyor_name TEXT,building_type TEXT,floors INTEGER,latitude REAL,longitude REAL,road_name TEXT,notes TEXT,photo_name TEXT,photo_url TEXT)`);const st=db.prepare(`INSERT INTO surveys VALUES(?,?,?,?,?,?,?,?,?,?,?)`);filtered.forEach(r=>st.run([r.id||null,r.captured_at||null,r.surveyor_name||null,r.building_type||null,r.floors??null,r.latitude||null,r.longitude||null,r.road_name||null,r.notes||null,r.photo_name||null,r.photo_url||null]));st.free();zip.file('data.db',db.export());}
+  else{const cols=['id','captured_at','surveyor_name','building_type','floors','latitude','longitude','road_name','notes','photo_name','photo_url'];zip.file('data.csv','\uFEFF'+[cols.join(','),...filtered.map(r=>cols.map(c=>r[c]??'').join(','))].join('\n'));}
+  // ── إضافة الصور في فولدر منفصل من الكاش ──
+  const pf=zip.folder('الصور');
+  for(const r of ph){
+    const fname=r.photo_name||(r.id+'.jpg');
+    const cached=imgCache.get(r.id);
+    if(!cached) continue;
+    if(cached.blob) pf.file(fname,cached.blob);
+    else{const bin=atob(cached.b64);const arr=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)arr[k]=bin.charCodeAt(k);pf.file(fname,arr);}
+  }
+  setProg(tot,tot,'ضغط...');
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'},m=>setProg(m.percent,100,`ضغط ${Math.round(m.percent)}%`));
+  saveAs(blob,`gis_${new Date().toISOString().substring(0,10)}.zip`);
+}
+function downloadCSV(){dlCSV();}
+
+// ── Selection ─────────────────────────────────────
+function toggleSelectMode(){
+  selectMode=!selectMode;
+  document.getElementById('sel-mode-btn').classList.toggle('act',selectMode);
+  map.getContainer().style.cursor=selectMode?'crosshair':'';
+  if(selectMode && polyMode) stopPolyMode();
+}
+
+// ── Polygon Select ────────────────────────────────
+function togglePolySelect(){
+  if(polyMode){ stopPolyMode(); return; }
+  if(selectMode){ selectMode=false; document.getElementById('sel-mode-btn').classList.remove('act'); }
+  polyMode=true;
+  polyPts=[];
+  document.getElementById('poly-mode-btn').classList.add('act');
+  document.getElementById('poly-hint').classList.add('visible');
+  map.getContainer().style.cursor='crosshair';
+  map.doubleClickZoom.disable();
+  map.on('click', polyAddPoint);
+  map.on('mousemove', polyPreviewMove);
+  document.addEventListener('keydown', polyEsc);
+}
+function stopPolyMode(){
+  polyMode=false;
+  polyPts=[];
+  document.getElementById('poly-mode-btn').classList.remove('act');
+  document.getElementById('poly-hint').classList.remove('visible');
+  map.getContainer().style.cursor='';
+  map.doubleClickZoom.enable();
+  map.off('click', polyAddPoint);
+  map.off('mousemove', polyPreviewMove);
+  document.removeEventListener('keydown', polyEsc);
+  polyLayer.clearLayers();
+  polyLine=null; polyPreview=null;
+}
+function polyEsc(e){ if(e.key==='Escape') stopPolyMode(); }
+function polyAddPoint(e){
+  polyPts.push([e.latlng.lat, e.latlng.lng]);
+  polyLayer.clearLayers();
+  if(polyPts.length>1){
+    polyLine=L.polyline(polyPts,{color:'#00c5ff',weight:2,dashArray:'6,4'}).addTo(polyLayer);
+  }
+  L.circleMarker([e.latlng.lat,e.latlng.lng],{radius:4,color:'#00c5ff',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(polyLayer);
+  document.getElementById('poly-hint-txt').textContent=`${polyPts.length} نقطة — اضغط إنهاء لتحديد المنطقة`;
+}
+function polyPreviewMove(e){
+  if(!polyPts.length) return;
+  if(polyPreview) polyLayer.removeLayer(polyPreview);
+  const pts=[...polyPts,[e.latlng.lat,e.latlng.lng]];
+  polyPreview=L.polyline(pts,{color:'#00c5ff',weight:1,opacity:.5,dashArray:'4,4'}).addTo(polyLayer);
+}
+function polyFinish(){
+  if(polyPts.length<3){
+    alert('ارسم على الأقل 3 نقاط لتحديد منطقة');
+    return;
+  }
+  // رسم البولجون النهائي
+  polyLayer.clearLayers();
+  L.polygon(polyPts,{color:'#ff9800',fillColor:'#ff9800',fillOpacity:.15,weight:2}).addTo(polyLayer);
+  // إيجاد كل النقط جوّا البولجون
+  filtered.forEach(r=>{
+    if(!r.latitude||!r.longitude) return;
+    if(pointInPolygon([r.latitude,r.longitude],polyPts)){
+      selectedIds.add(r.id);
+      setTimeout(()=>markerById[r.id]?.getElement()?.classList.add('marker-selected'),80);
+    }
+  });
+  updateSelBar();
+  // إخفاء البولجون بعد ثانيتين وإيقاف الوضع
+  setTimeout(()=>{ polyLayer.clearLayers(); stopPolyMode(); },2000);
+}
+function pointInPolygon(pt, poly){
+  // Ray casting algorithm
+  let inside=false;
+  const x=pt[0],y=pt[1];
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1];
+    const xj=poly[j][0],yj=poly[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function updateSelBar(){
+  const bar=document.getElementById('sel-bar');
+  document.getElementById('sel-count').textContent=selectedIds.size;
+  bar.classList.toggle('visible',selectedIds.size>0);
+}
+function clearSelection(){
+  selectedIds.clear();
+  document.querySelectorAll('.marker-selected').forEach(el=>el.classList.remove('marker-selected'));
+  updateSelBar();
+}
+async function dlSelected(){
+  if(!selectedIds.size) return;
+  const sel=allData.filter(r=>selectedIds.has(r.id));
+  // progress bar مؤقت
+  const pb=document.createElement('div');
+  pb.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);padding:14px 24px;border-radius:14px;z-index:9999;min-width:300px;text-align:center;font-family:Cairo,sans-serif;color:#fff;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,.5);';
+  pb.innerHTML='<div id="_spb_txt">جاري التجهيز...</div><div style="background:#333;border-radius:4px;margin-top:8px;height:7px"><div id="_spb_fl" style="background:#00c5ff;height:7px;border-radius:4px;width:0%;transition:width .3s"></div></div>';
+  document.body.appendChild(pb);
+  const spProg=(cur,tot,msg)=>{
+    const pct=tot?Math.round(cur/tot*100):0;
+    document.getElementById('_spb_fl').style.width=pct+'%';
+    document.getElementById('_spb_txt').textContent=msg||`${cur}/${tot}`;
+  };
+  try{
+    const zip=new JSZip();
+    const ph=sel.filter(r=>r.photo_url||r.thumbnail);
+    const tot=ph.length;
+    // تحميل الصور مرة واحدة
+    const imgCache=new Map();
+    for(let i=0;i<ph.length;i++){
+      const r=ph[i];
+      spProg(i,tot,`تحميل صورة ${i+1}/${tot}`);
+      if(r.thumbnail){
+        imgCache.set(r.id,{b64:r.thumbnail,blob:null,ext:'jpeg'});
+      } else if(r.photo_url){
+        try{
+          const blob=await(await fetch(r.photo_url)).blob();
+          const b64=await blobToB64(blob);
+          imgCache.set(r.id,{b64,blob,ext:r.photo_url.toLowerCase().includes('.png')?'png':'jpeg'});
+        }catch(_){}
+      }
+    }
+    // بناء Excel
+    spProg(tot,tot,'جاري بناء Excel...');
+    const prevFiltered=filtered;
+    filtered=sel;
+    const wb=await buildXLS(imgCache);
+    filtered=prevFiltered;
+    zip.file('data.xlsx',await wb.xlsx.writeBuffer());
+    // فولدر الصور
+    const pf=zip.folder('الصور');
+    for(const r of ph){
+      const fname=r.photo_name||(r.id+'.jpg');
+      const cached=imgCache.get(r.id);
+      if(!cached) continue;
+      if(cached.blob) pf.file(fname,cached.blob);
+      else{const bin=atob(cached.b64);const arr=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)arr[k]=bin.charCodeAt(k);pf.file(fname,arr);}
+    }
+    spProg(0,1,'ضغط...');
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'},m=>spProg(m.percent,100,`ضغط ${Math.round(m.percent)}%`));
+    saveAs(blob,`selected_${new Date().toISOString().substring(0,10)}.zip`);
+    spProg(1,1,'✅ اكتمل!');
+    setTimeout(()=>pb.remove(),2500);
+  }catch(e){
+    document.getElementById('_spb_txt').textContent='⚠️ '+e.message;
+    setTimeout(()=>pb.remove(),4000);
+  }
+}
+
+// ── Init ──────────────────────────────────────────
+checkAuth();
+</script>
+
+<!-- Delete Confirmation Modal -->
+<div id="del-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px 24px;max-width:340px;width:90%;text-align:center;font-family:Cairo,sans-serif;">
+    <div style="font-size:40px;margin-bottom:12px;">🗑️</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text);">تأكيد الحذف</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">هل تريد حذف هذا السجل؟<br><span id="del-info" style="color:var(--accent);font-weight:600;"></span></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="document.getElementById('del-ov').style.display='none'" style="padding:8px 22px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;">إلغاء</button>
+      <button id="del-confirm-btn" style="padding:8px 22px;border-radius:8px;border:none;background:#f44336;color:#fff;cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;">حذف</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
