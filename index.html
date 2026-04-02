@@ -61,6 +61,7 @@ header {
   border-bottom:1px solid var(--border);
   display:flex; align-items:center; gap:0;
   flex-shrink:0; z-index:200;
+  overflow:hidden;
 }
 .h-brand {
   width:var(--side-w);
@@ -80,10 +81,12 @@ header {
 /* KPI strip */
 .kpi-strip {
   display:flex; align-items:center; gap:1px;
-  flex:1; height:100%; overflow:hidden;
+  flex:1; height:100%; overflow-x:auto; overflow-y:hidden;
+  scrollbar-width:none;
 }
+.kpi-strip::-webkit-scrollbar { display:none; }
 .kpi {
-  flex:1; height:100%; display:flex; flex-direction:column;
+  flex:0 0 auto; min-width:80px; height:100%; display:flex; flex-direction:column;
   align-items:center; justify-content:center;
   border-left:1px solid var(--border);
   padding:6px 10px; cursor:default;
@@ -96,34 +99,80 @@ header {
   transform:scaleX(0); transition:transform .2s;
 }
 .kpi:hover::after { transform:scaleX(1); }
-.kpi .n { font-size:22px; font-weight:900; color:var(--accent); line-height:1; }
-.kpi .l { font-size:10px; color:var(--text3); margin-top:1px; text-transform:uppercase; letter-spacing:.5px; }
+.kpi .n { font-size:20px; font-weight:900; color:var(--accent); line-height:1; }
+.kpi .l { font-size:9px; color:var(--text3); margin-top:1px; text-transform:uppercase; letter-spacing:.5px; }
 
 /* Header right */
 .h-actions {
-  display:flex; align-items:center; gap:6px;
-  padding:0 14px; height:100%; border-right:1px solid var(--border);
-  flex-shrink:0;
+  display:flex; align-items:center; gap:5px;
+  padding:0 10px; height:100%; border-right:1px solid var(--border);
+  flex-shrink:0; overflow-x:auto; overflow-y:hidden;
+  scrollbar-width:none; max-width:100%;
 }
+.h-actions::-webkit-scrollbar { display:none; }
 .hbtn {
-  height:30px; padding:0 12px; border-radius:4px;
+  height:30px; padding:0 10px; border-radius:4px;
   border:1px solid var(--border); background:var(--panel2);
   color:var(--text2); cursor:pointer; font-size:11px;
   font-family:'Cairo',sans-serif; font-weight:600;
-  display:flex; align-items:center; gap:5px;
-  transition:all .15s; white-space:nowrap;
+  display:flex; align-items:center; gap:4px;
+  transition:all .15s; white-space:nowrap; flex-shrink:0;
 }
 .hbtn:hover { background:var(--accent); border-color:var(--accent); color:#000; }
 .hbtn.act  { background:var(--accent); border-color:var(--accent); color:#000; }
 .tbtn {
-  width:30px; height:30px; border-radius:4px;
+  width:30px; height:30px; border-radius:4px; flex-shrink:0;
   border:1px solid var(--border); background:var(--panel2);
   color:var(--text2); cursor:pointer; font-size:15px;
   display:flex; align-items:center; justify-content:center;
   transition:all .15s;
 }
 .tbtn:hover { background:var(--accent); border-color:var(--accent); color:#000; }
-#last-upd { font-size:10px; color:var(--text3); white-space:nowrap; padding-right:4px; }
+#last-upd { font-size:10px; color:var(--text3); white-space:nowrap; padding-right:4px; flex-shrink:0; }
+
+/* ═══ RESPONSIVE ═══ */
+/* Side panel overlay on mobile */
+.side-overlay-btn {
+  display:none;
+  width:32px; height:32px; border-radius:4px; flex-shrink:0;
+  border:1px solid var(--border); background:var(--panel2);
+  color:var(--text2); cursor:pointer; font-size:16px;
+  align-items:center; justify-content:center;
+}
+.side-close-btn {
+  display:none; position:absolute; top:8px; left:8px;
+  width:28px; height:28px; border-radius:4px;
+  border:1px solid var(--border); background:var(--panel2);
+  color:var(--text2); cursor:pointer; font-size:13px;
+  align-items:center; justify-content:center; z-index:10;
+}
+
+@media (max-width:960px) {
+  :root { --side-w: 270px; }
+  .h-brand { border-left:none; }
+  .h-sub { display:none; }
+  .side {
+    position:fixed; top:var(--header-h); right:-280px;
+    height:calc(100% - var(--header-h));
+    width:270px !important; z-index:500;
+    box-shadow:-4px 0 20px rgba(0,0,0,.5);
+    transition:right .25s ease;
+  }
+  .side.open { right:0; }
+  .side-overlay-btn { display:flex; }
+  .side-close-btn { display:flex; }
+  .kpi { min-width:70px; }
+  .kpi .n { font-size:17px; }
+}
+@media (max-width:600px) {
+  .h-brand { min-width:80px; padding:0 8px; }
+  .h-title { font-size:11px; }
+  .hbtn { padding:0 7px; font-size:10px; height:28px; }
+  .kpi .n { font-size:14px; }
+  .kpi .l { font-size:7px; }
+  #last-upd { display:none; }
+  #user-name, #user-role { display:none; }
+}
 
 /* ═══ BODY ═══ */
 .body-wrap { display:flex; flex:1; overflow:hidden; }
@@ -416,7 +465,9 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
   </div>
 
   <div class="h-actions">
-    <div style="display:flex;align-items:center;gap:6px;padding:0 10px;border-left:1px solid var(--border);height:100%;">
+    <button class="side-overlay-btn" onclick="toggleSidePanel()" title="القائمة">☰</button>
+    <div onclick="openVisitsModal()" class="admin-only" style="display:flex;align-items:center;gap:6px;padding:0 10px;border-left:1px solid var(--border);height:100%;cursor:pointer;transition:background .15s;"
+         onmouseover="this.style.background='var(--panel2)'" onmouseout="this.style.background='transparent'">
       <span style="font-size:10px;color:var(--text3);">👁 الزيارات:</span>
       <span id="visit-count" style="font-size:13px;font-weight:700;color:var(--accent);">—</span>
       <span style="font-size:10px;color:var(--text3);margin-right:8px;">آخر دخول:</span>
@@ -434,7 +485,8 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <button class="tbtn" id="tbtn" onclick="toggleTheme()" title="ثيم">🌙</button>
     <span id="last-upd" class="blink">تحميل...</span>
     <div style="width:1px;height:32px;background:var(--border);margin:0 6px;flex-shrink:0;"></div>
-    <div id="user-info" style="display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;">
+    <div id="user-info" style="position:relative;display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;cursor:pointer;"
+         onclick="toggleUserMenu()">
       <div id="user-avatar" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;
            background:#2a2a3a;border:1px solid var(--border);
            display:flex;align-items:center;justify-content:center;font-size:15px;">
@@ -445,12 +497,24 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
              max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</div>
         <div id="user-role" style="font-size:10px;color:var(--accent);font-weight:600;">—</div>
       </div>
-      <button onclick="doLogout()" title="تسجيل خروج"
-        style="background:rgba(244,67,54,0.12);border:1px solid rgba(244,67,54,0.35);
-               color:#f44336;border-radius:7px;padding:4px 8px;cursor:pointer;
-               font-size:11px;font-family:Cairo,sans-serif;white-space:nowrap;"
-        onmouseover="this.style.background='rgba(244,67,54,0.28)'"
-        onmouseout="this.style.background='rgba(244,67,54,0.12)'">↩ خروج</button>
+      <span style="font-size:9px;color:var(--text3);">▼</span>
+      <!-- Dropdown -->
+      <div id="user-menu" style="display:none;position:absolute;top:calc(100% + 6px);left:0;
+           min-width:160px;background:var(--panel);border:1px solid var(--border);
+           border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:9999;
+           overflow:hidden;font-family:Cairo,sans-serif;">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);">
+          <div id="menu-name" style="font-size:12px;font-weight:700;color:var(--text);"></div>
+          <div id="menu-role" style="font-size:10px;color:var(--accent);margin-top:2px;"></div>
+        </div>
+        <div onclick="doLogout();event.stopPropagation();"
+             style="padding:10px 14px;display:flex;align-items:center;gap:8px;
+                    color:#f44336;font-size:12px;cursor:pointer;transition:background .15s;"
+             onmouseover="this.style.background='rgba(244,67,54,0.12)'"
+             onmouseout="this.style.background='transparent'">
+          ↩ تسجيل الخروج
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -480,6 +544,39 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
              font-family:Cairo,sans-serif;font-size:15px;font-weight:700;cursor:pointer">
       دخول 🔐
     </button>
+    <div style="text-align:center;margin-top:14px;">
+      <span onclick="showForgot()" style="font-size:12px;color:#607d9e;cursor:pointer;text-decoration:underline;">
+        نسيت كلمة المرور؟
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password -->
+<div id="forgot-ov" style="display:none;position:fixed;inset:0;z-index:9999999;
+     background:linear-gradient(160deg,#0d1117,#1a2332);
+     align-items:center;justify-content:center;font-family:Cairo,sans-serif">
+  <div style="background:#1e2a3a;border:1px solid #2d3f55;border-radius:20px;
+              padding:36px 32px;width:100%;max-width:360px;text-align:center">
+    <div style="font-size:40px;margin-bottom:8px">🔑</div>
+    <div style="font-size:18px;font-weight:900;color:#fff;margin-bottom:6px">استعادة كلمة المرور</div>
+    <div style="font-size:12px;color:#607d9e;margin-bottom:20px">سيتم إرسال رابط التغيير على بريدك</div>
+    <input id="forgot-email" type="email" placeholder="البريد الإلكتروني"
+      style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
+             border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
+             margin-bottom:14px;outline:none;text-align:right"/>
+    <div id="forgot-msg" style="font-size:12px;margin-bottom:10px;min-height:16px"></div>
+    <button onclick="sendReset()"
+      style="width:100%;padding:13px;border-radius:10px;border:none;
+             background:linear-gradient(135deg,#1565C0,#00c5ff);color:#fff;
+             font-family:Cairo,sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      إرسال الرابط 📧
+    </button>
+    <div style="text-align:center;">
+      <span onclick="hideForgot()" style="font-size:12px;color:#607d9e;cursor:pointer;text-decoration:underline;">
+        رجوع لتسجيل الدخول
+      </span>
+    </div>
   </div>
 </div>
 
@@ -509,7 +606,8 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 <div class="body-wrap">
 
   <!-- ── Left Panel ── -->
-  <div class="side">
+  <div class="side" id="side-panel">
+    <button class="side-close-btn" onclick="toggleSidePanel()">✕</button>
 
     <div class="side-sect">
       <div class="sect-head">
@@ -725,6 +823,8 @@ async function checkAuth() {
   const namePart = email.split('@')[0].replace(/[._]/g,' ');
   document.getElementById('user-name').textContent = namePart;
   document.getElementById('user-role').textContent = currentIsAdmin ? 'مدير النظام' : 'مساح';
+  document.getElementById('menu-name').textContent = namePart;
+  document.getElementById('menu-role').textContent = currentIsAdmin ? 'مدير النظام' : 'مساح';
   // hide admin-only buttons for non-admins
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = currentIsAdmin ? '' : 'none';
@@ -737,6 +837,29 @@ async function checkAuth() {
   loadAnalytics();
   loadData();
   setInterval(loadData, 30000);
+}
+
+function showForgot() {
+  document.getElementById('login-ov').style.display='none';
+  document.getElementById('forgot-ov').style.display='flex';
+  document.getElementById('forgot-msg').textContent='';
+}
+function hideForgot() {
+  document.getElementById('forgot-ov').style.display='none';
+  document.getElementById('login-ov').style.display='flex';
+}
+async function sendReset() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const msg   = document.getElementById('forgot-msg');
+  if (!email) { msg.style.color='#f44336'; msg.textContent='❌ أدخل البريد الإلكتروني'; return; }
+  const { error } = await sbClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href
+  });
+  if (error) {
+    msg.style.color='#f44336'; msg.textContent='❌ ' + error.message;
+  } else {
+    msg.style.color='#4CAF50'; msg.textContent='✅ تم الإرسال — تحقق من بريدك';
+  }
 }
 
 async function doLogin() {
@@ -769,17 +892,77 @@ async function logVisit(email) {
   }).catch(()=>{});
 }
 
+let _visitsData = [];
+
 async function loadAnalytics() {
   try {
-    const data = await sbGet('/rest/v1/dashboard_visits?select=id,visited_at,user_email&order=visited_at.desc&limit=500');
-    document.getElementById('visit-count').textContent = data.length;
-    if (data[0]) {
-      const d = new Date(data[0].visited_at);
+    const data = await sbGet('/rest/v1/dashboard_visits?select=id,visited_at,user_email&order=visited_at.desc&limit=1000');
+    _visitsData = data || [];
+    document.getElementById('visit-count').textContent = _visitsData.length;
+    if (_visitsData[0]) {
+      const d = new Date(_visitsData[0].visited_at);
       document.getElementById('last-visit').textContent =
-        d.toLocaleDateString('ar-EG')+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+        d.toLocaleDateString('ar-SA', {timeZone:'Asia/Riyadh'}) + ' ' +
+        d.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Riyadh'});
     }
+    // fill user filter
+    const users = [...new Set(_visitsData.map(v => v.user_email))];
+    const sel = document.getElementById('v-user');
+    sel.innerHTML = '<option value="">👥 كل المستخدمين</option>' +
+      users.map(u => `<option value="${u}">${u.split('@')[0]}</option>`).join('');
   } catch(_) {}
 }
+
+function openVisitsModal() {
+  if (!currentIsAdmin) return;
+  document.getElementById('visits-ov').style.display = 'flex';
+  renderVisits();
+}
+
+function renderVisits() {
+  const dateVal = document.getElementById('v-date').value;
+  const userVal = document.getElementById('v-user').value;
+  let d = [..._visitsData];
+  if (dateVal) d = d.filter(v => v.visited_at?.startsWith(dateVal));
+  if (userVal) d = d.filter(v => v.user_email === userVal);
+  document.getElementById('v-total').textContent = `إجمالي: ${d.length} زيارة`;
+  document.getElementById('visits-body').innerHTML = d.map((v, i) => {
+    const dt = new Date(v.visited_at);
+    const dateStr = dt.toLocaleDateString('ar-SA', {timeZone:'Asia/Riyadh', year:'numeric', month:'2-digit', day:'2-digit'});
+    const timeStr = dt.toLocaleTimeString('ar-SA', {timeZone:'Asia/Riyadh', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const name = (v.user_email||'').split('@')[0];
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:7px 12px;color:var(--text3);">${i+1}</td>
+      <td style="padding:7px 12px;color:var(--accent);font-weight:600;">${name}</td>
+      <td style="padding:7px 12px;color:var(--text2);">${dateStr}</td>
+      <td style="padding:7px 12px;color:var(--text2);">${timeStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── User Menu ────────────────────────────────────
+function toggleUserMenu() {
+  const m = document.getElementById('user-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#user-info'))
+    document.getElementById('user-menu').style.display = 'none';
+});
+
+// ── Side Panel (mobile) ──────────────────────────
+function toggleSidePanel() {
+  document.getElementById('side-panel').classList.toggle('open');
+}
+// close side when clicking map area on mobile
+document.addEventListener('click', e => {
+  const side = document.getElementById('side-panel');
+  if (side.classList.contains('open') &&
+      !side.contains(e.target) &&
+      !e.target.closest('.side-overlay-btn')) {
+    side.classList.remove('open');
+  }
+});
 
 // ── Theme ────────────────────────────────────────
 let dark = true;
@@ -1349,6 +1532,7 @@ async function saveEdit() {
     const i = allData.findIndex(x => x.id === _editId);
     if (i !== -1) Object.assign(allData[i], body);
     applyFilter();
+    renderAttr();
     document.getElementById('edit-ov').style.display = 'none';
   } catch(e) { alert('خطأ في الحفظ: ' + e.message); }
   btn.textContent = '💾 حفظ'; btn.disabled = false;
@@ -1708,6 +1892,46 @@ checkAuth();
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
       <button onclick="document.getElementById('edit-ov').style.display='none'" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-family:Cairo,sans-serif;">إلغاء</button>
       <button id="edit-save-btn" onclick="saveEdit()" style="padding:8px 22px;border-radius:8px;border:none;background:#00c5ff;color:#000;cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Visits Modal -->
+<div id="visits-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;
+              width:94%;max-width:680px;max-height:88vh;display:flex;flex-direction:column;
+              font-family:Cairo,sans-serif;overflow:hidden;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:15px;font-weight:700;color:var(--accent)">👁 سجل الزيارات</div>
+      <button onclick="document.getElementById('visits-ov').style.display='none'"
+        style="background:var(--panel2);border:1px solid var(--border);color:var(--text2);
+               border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:13px;">✕</button>
+    </div>
+    <!-- filters -->
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <input id="v-date" type="date" onchange="renderVisits()"
+        style="padding:6px 10px;background:var(--panel2);border:1px solid var(--border);
+               border-radius:6px;color:var(--text);font-family:Cairo,sans-serif;font-size:12px;"/>
+      <select id="v-user" onchange="renderVisits()"
+        style="padding:6px 10px;background:var(--panel2);border:1px solid var(--border);
+               border-radius:6px;color:var(--text);font-family:Cairo,sans-serif;font-size:12px;">
+        <option value="">👥 كل المستخدمين</option>
+      </select>
+      <span id="v-total" style="font-size:12px;color:var(--text3);margin-right:auto;"></span>
+    </div>
+    <!-- table -->
+    <div style="overflow:auto;flex:1;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr>
+            <th style="background:var(--panel2);color:var(--accent);padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;">#</th>
+            <th style="background:var(--panel2);color:var(--accent);padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;">المستخدم</th>
+            <th style="background:var(--panel2);color:var(--accent);padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;">التاريخ</th>
+            <th style="background:var(--panel2);color:var(--accent);padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;">الوقت (مكة)</th>
+          </tr>
+        </thead>
+        <tbody id="visits-body"></tbody>
+      </table>
     </div>
   </div>
 </div>
