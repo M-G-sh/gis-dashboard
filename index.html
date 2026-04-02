@@ -14,6 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://sql.js.org/dist/sql-wasm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet-editable/src/Leaflet.Editable.js"></script>
 <style>
 :root {
   --bg:        #1a1a1a;
@@ -427,24 +428,17 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <button class="hbtn" id="photos-map-btn" onclick="togglePhotoMap()">🖼️ الصور</button>
     <button class="hbtn" id="sel-mode-btn" onclick="toggleSelectMode()">🔲 تحديد</button>
     <button class="hbtn" id="poly-mode-btn" onclick="togglePolySelect()">⬡ تحديد منطقة</button>
+    <button class="hbtn admin-only" id="gis-edit-btn" onclick="toggleGisEdit()">✏️ تعديل الطبقات</button>
+    <button class="hbtn admin-only" id="gis-save-btn" onclick="saveGisEdits()" style="display:none;background:rgba(76,175,80,0.2);border-color:#4CAF50;color:#4CAF50;">💾 حفظ التعديلات</button>
     <button class="hbtn act" onclick="loadData()">🔄</button>
     <button class="tbtn" id="tbtn" onclick="toggleTheme()" title="ثيم">🌙</button>
     <span id="last-upd" class="blink">تحميل...</span>
     <div style="width:1px;height:32px;background:var(--border);margin:0 6px;flex-shrink:0;"></div>
     <div id="user-info" style="display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;">
       <div id="user-avatar" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;
-           background:linear-gradient(135deg,#0d1b2a,#1565C0);
-           border:2px solid rgba(0,197,255,0.45);
-           display:flex;align-items:center;justify-content:center;
-           box-shadow:0 0 8px rgba(0,197,255,0.25);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="8" r="3.5" stroke="#00c5ff" stroke-width="1.8"/>
-          <path d="M5 20c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="#00c5ff" stroke-width="1.8" stroke-linecap="round"/>
-          <circle cx="19" cy="7" r="1.5" fill="#00e5ff" opacity=".7"/>
-          <circle cx="5" cy="7" r="1.5" fill="#00e5ff" opacity=".7"/>
-          <line x1="17.5" y1="7" x2="15" y2="8.5" stroke="#00e5ff" stroke-width="1.2" opacity=".6"/>
-          <line x1="6.5" y1="7" x2="9" y2="8.5" stroke="#00e5ff" stroke-width="1.2" opacity=".6"/>
-        </svg>
+           background:#2a2a3a;border:1px solid var(--border);
+           display:flex;align-items:center;justify-content:center;font-size:15px;">
+        👤
       </div>
       <div style="line-height:1.3;">
         <div id="user-name" style="font-size:12px;font-weight:700;color:var(--text);
@@ -729,7 +723,7 @@ async function checkAuth() {
   currentIsAdmin = email === ADMIN_EMAIL;
   const namePart = email.split('@')[0].replace(/[._]/g,' ');
   document.getElementById('user-name').textContent = namePart;
-  document.getElementById('user-role').textContent = currentIsAdmin ? '👑 مدير النظام' : '👷 مساح';
+  document.getElementById('user-role').textContent = currentIsAdmin ? 'مدير النظام' : 'مساح';
   // hide admin-only buttons for non-admins
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = currentIsAdmin ? '' : 'none';
@@ -799,7 +793,7 @@ let allData=[], filtered=[], activeSrv='all';
 let sortCol='captured_at', sortAsc=false, srchTerm='';
 
 // ── Map ──────────────────────────────────────────
-const map = L.map('map').setView([21.3891,39.8579],13);
+const map = L.map('map', {editable:true}).setView([21.3891,39.8579],13);
 map._userMoved = false;
 map.on('moveend zoomend', () => { map._userMoved = true; });
 const baseStreet = L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google',maxZoom:19});
@@ -940,10 +934,10 @@ function renderMap() {
 // ── GIS Layers ────────────────────────────────────
 const RING_COLORS = { 1:'#E53935', 2:'#E91E63', 3:'#8E24AA', 4:'#1E88E5', 5:'#00ACC1' };
 const dashGisLayers = {
-  allRoads:   { loaded:false, visible:false, layers:[] },
-  ringRoads:  { loaded:false, visible:false, layers:[] },
-  haramZones: { loaded:false, visible:false, layers:[] },
-  ishrafiZone:{ loaded:false, visible:false, layers:[] },
+  allRoads:   { loaded:false, visible:false, layers:[], table:'all_roads' },
+  ringRoads:  { loaded:false, visible:false, layers:[], table:'ring_roads' },
+  haramZones: { loaded:false, visible:false, layers:[], table:'haram_zones' },
+  ishrafiZone:{ loaded:false, visible:false, layers:[], table:'ishrafi_zone' },
 };
 
 function toggleGisDropdown() {
@@ -995,39 +989,43 @@ async function dashLoadGis(name) {
   try {
     const layers = [];
     if (name === 'allRoads') {
-      const rows = await sbGet('/rest/v1/all_roads?select=road_name,geom');
+      const rows = await sbGet('/rest/v1/all_roads?select=id,road_name,geom');
       for (const r of rows||[]) {
         for (const coords of geomLines(parseGeom(r.geom))) {
           const pl = L.polyline(coords, {color:'#FFD600',weight:2.5,opacity:0.9}).addTo(map);
           if (r.road_name) pl.bindPopup(`<b style="font-family:Cairo,sans-serif">${r.road_name}</b>`);
+          pl._dbId = r.id; pl._dbTable = 'all_roads'; pl._dbGeomType = 'LineString';
           layers.push(pl);
         }
       }
     } else if (name === 'ringRoads') {
-      const rows = await sbGet('/rest/v1/ring_roads?select=ring_number,ring_name,geom');
+      const rows = await sbGet('/rest/v1/ring_roads?select=id,ring_number,ring_name,geom');
       for (const r of rows||[]) {
         for (const coords of geomLines(parseGeom(r.geom))) {
           const color = RING_COLORS[r.ring_number]||'#E53935';
           const pl = L.polyline(coords, {color,weight:3,opacity:0.9}).addTo(map);
           if (r.ring_name) pl.bindTooltip(r.ring_name);
+          pl._dbId = r.id; pl._dbTable = 'ring_roads'; pl._dbGeomType = 'LineString';
           layers.push(pl);
         }
       }
     } else if (name === 'haramZones') {
-      const rows = await sbGet('/rest/v1/haram_zones?select=zone_name,geom');
+      const rows = await sbGet('/rest/v1/haram_zones?select=id,zone_name,geom');
       for (const r of rows||[]) {
         for (const ring of geomRings(parseGeom(r.geom))) {
           const pg = L.polygon(ring, {color:'#4CAF50',fillColor:'#4CAF50',fillOpacity:0.12,weight:2}).addTo(map);
           if (r.zone_name) pg.bindTooltip(r.zone_name);
+          pg._dbId = r.id; pg._dbTable = 'haram_zones'; pg._dbGeomType = 'Polygon';
           layers.push(pg);
         }
       }
     } else if (name === 'ishrafiZone') {
-      const rows = await sbGet('/rest/v1/ishrafi_zone?select=zone_name,geom');
+      const rows = await sbGet('/rest/v1/ishrafi_zone?select=id,zone_name,geom');
       for (const r of rows||[]) {
         for (const ring of geomRings(parseGeom(r.geom))) {
           const pg = L.polygon(ring, {color:'#4CAF50',fillColor:'#4CAF50',fillOpacity:0.15,weight:2.5}).addTo(map);
           pg.bindTooltip('نطاق الإشراف');
+          pg._dbId = r.id; pg._dbTable = 'ishrafi_zone'; pg._dbGeomType = 'Polygon';
           layers.push(pg);
         }
       }
@@ -1039,6 +1037,102 @@ async function dashLoadGis(name) {
 
 function updateDtgl(name) {
   document.getElementById('dtgl-'+name).className = 'dtgl' + (dashGisLayers[name].visible ? ' on' : '');
+}
+
+// ── GIS Edit Mode ─────────────────────────────────
+let gisEditMode = false;
+const editedLayers = new Set();
+
+function toggleGisEdit() {
+  if (!currentIsAdmin) return;
+  gisEditMode = !gisEditMode;
+  const btn = document.getElementById('gis-edit-btn');
+  const saveBtn = document.getElementById('gis-save-btn');
+  if (gisEditMode) {
+    btn.style.background = 'rgba(255,152,0,0.2)';
+    btn.style.borderColor = '#ff9800';
+    btn.style.color = '#ff9800';
+    btn.textContent = '✏️ إيقاف التعديل';
+    saveBtn.style.display = '';
+    // تفعيل النقر على الطبقات
+    Object.values(dashGisLayers).forEach(g => {
+      g.layers.forEach(l => {
+        l._editClickHandler = () => {
+          if (!gisEditMode) return;
+          l.enableEdit();
+          l._edited = true;
+          editedLayers.add(l);
+          l.setStyle({color:'#FF5722', weight:4});
+        };
+        l.on('click', l._editClickHandler);
+      });
+    });
+    alert('اضغط على أي طريق أو منطقة لتفعيل التعديل — ثم حرك النقاط');
+  } else {
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.textContent = '✏️ تعديل الطبقات';
+    // إيقاف التعديل على الكل
+    Object.values(dashGisLayers).forEach(g => {
+      g.layers.forEach(l => {
+        if (l.disableEdit) l.disableEdit();
+        if (l._editClickHandler) l.off('click', l._editClickHandler);
+        // إرجاع اللون الأصلي
+        if (l._edited) {
+          const tableName = l._dbTable;
+          const origColor = tableName==='all_roads' ? '#FFD600'
+            : tableName==='ring_roads' ? (RING_COLORS[l._ringNum]||'#E53935')
+            : '#4CAF50';
+          l.setStyle({color: origColor, weight: tableName==='all_roads'?2.5:tableName==='ring_roads'?3:2});
+        }
+      });
+    });
+  }
+}
+
+async function saveGisEdits() {
+  if (!currentIsAdmin || editedLayers.size === 0) {
+    alert('لا توجد تعديلات للحفظ'); return;
+  }
+  const btn = document.getElementById('gis-save-btn');
+  btn.textContent = '⏳ جاري الحفظ...';
+  btn.disabled = true;
+  let saved = 0, failed = 0;
+  for (const l of editedLayers) {
+    if (!l._dbId || !l._dbTable) continue;
+    try {
+      // تحويل الإحداثيات لـ GeoJSON
+      let geom;
+      if (l._dbGeomType === 'LineString') {
+        const coords = l.getLatLngs().map(p => [p.lng, p.lat]);
+        geom = { type:'MultiLineString', coordinates: [coords] };
+      } else {
+        const coords = l.getLatLngs()[0].map(p => [p.lng, p.lat]);
+        if (coords.length && (coords[0][0]!==coords[coords.length-1][0] || coords[0][1]!==coords[coords.length-1][1]))
+          coords.push(coords[0]);
+        geom = { type:'MultiPolygon', coordinates: [[coords]] };
+      }
+      const res = await fetch(`${SB_URL}/rest/v1/rpc/update_geom`, {
+        method: 'POST',
+        headers: {...HDR, 'Content-Type':'application/json'},
+        body: JSON.stringify({
+          p_table: l._dbTable,
+          p_id: l._dbId,
+          p_geojson: JSON.stringify(geom)
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      saved++;
+    } catch(e) {
+      console.error(e); failed++;
+    }
+  }
+  editedLayers.clear();
+  btn.textContent = '💾 حفظ التعديلات';
+  btn.disabled = false;
+  alert(`✅ تم حفظ ${saved} طبقة${failed ? ' | ❌ فشل '+failed : ''}`);
+  toggleGisEdit(); // إيقاف وضع التعديل
 }
 
 // ── Highlight row in attribute table ─────────────
