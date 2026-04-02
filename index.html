@@ -578,6 +578,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
               <th>الإحداثيات</th>
               <th>صورة</th>
               <th>مقارنة</th>
+              <th class="admin-only">تعديل</th>
               <th>حذف</th>
             </tr>
           </thead>
@@ -1296,6 +1297,9 @@ function renderAttr(){
     const delBtn= currentIsAdmin
       ? `<button onclick="confirmDelete('${r.id}','${(r.surveyor_name||'').replace(/'/g,"\\'")}','${(r.captured_at||'').substring(0,16).replace('T',' ')}')" style="padding:2px 8px;background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🗑️</button>`
       : `<span style="color:var(--text3);font-size:10px;">—</span>`;
+    const editBtn= currentIsAdmin
+      ? `<button onclick="editRow('${r.id}')" style="padding:2px 8px;background:rgba(0,197,255,0.15);color:#00c5ff;border:1px solid rgba(0,197,255,0.3);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">✏️</button>`
+      : '';
     return `<tr data-id="${r.id}" onclick="highlightRow('${r.id}')">
       <td class="num">${i+1}</td>
       <td>${r.captured_at?.substring(0,16).replace('T',' ')||'—'}</td>
@@ -1305,8 +1309,49 @@ function renderAttr(){
       <td style="font-size:11px">${r.road_name||'—'}</td>
       <td style="font-size:11px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.notes||''}">${r.notes||'—'}</td>
       <td class="num" style="font-size:10px">${r.latitude?.toFixed(5)||'—'}, ${r.longitude?.toFixed(5)||'—'}</td>
-      <td>${th}</td><td>${cb}</td><td>${delBtn}</td></tr>`;
+      <td>${th}</td><td>${cb}</td><td class="admin-only">${editBtn}</td><td>${delBtn}</td></tr>`;
   }).join('');
+}
+
+// ── Edit Row ──────────────────────────────────────
+let _editId = null;
+
+function editRow(id) {
+  if (!currentIsAdmin) return;
+  const r = allData.find(x => x.id === id);
+  if (!r) return;
+  _editId = id;
+  document.getElementById('edit-type').value  = r.building_type || '';
+  document.getElementById('edit-floors').value = r.floors ?? '';
+  document.getElementById('edit-road').value   = r.road_name || '';
+  document.getElementById('edit-notes').value  = r.notes || '';
+  document.getElementById('edit-ov').style.display = 'flex';
+}
+
+async function saveEdit() {
+  if (!_editId) return;
+  const btn = document.getElementById('edit-save-btn');
+  btn.textContent = '⏳ جاري الحفظ...'; btn.disabled = true;
+  const body = {
+    building_type: document.getElementById('edit-type').value || null,
+    floors:        parseInt(document.getElementById('edit-floors').value) || null,
+    road_name:     document.getElementById('edit-road').value || null,
+    notes:         document.getElementById('edit-notes').value || null,
+  };
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/surveys?id=eq.${_editId}`, {
+      method: 'PATCH',
+      headers: {...HDR, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    // تحديث allData محلياً
+    const i = allData.findIndex(x => x.id === _editId);
+    if (i !== -1) Object.assign(allData[i], body);
+    applyFilter();
+    document.getElementById('edit-ov').style.display = 'none';
+  } catch(e) { alert('خطأ في الحفظ: ' + e.message); }
+  btn.textContent = '💾 حفظ'; btn.disabled = false;
 }
 
 // ── Delete ────────────────────────────────────────
@@ -1633,6 +1678,39 @@ async function dlSelected(){
 // ── Init ──────────────────────────────────────────
 checkAuth();
 </script>
+
+<!-- Edit Row Modal -->
+<div id="edit-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:420px;width:94%;font-family:Cairo,sans-serif;">
+    <div style="font-size:16px;font-weight:700;margin-bottom:18px;color:var(--accent)">✏️ تعديل السجل</div>
+    <div style="display:grid;gap:12px;">
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">نوع المبنى</div>
+        <select id="edit-type" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:Cairo,sans-serif;font-size:13px;">
+          <option value="">غير محدد</option>
+          <option>سكني تجاري</option><option>تجاري</option><option>سكني</option>
+          <option>صناعي</option><option>صحي</option><option>تعليمي</option><option>ديني</option><option>أخرى</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">عدد الأدوار</div>
+        <input id="edit-floors" type="number" min="0" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:Cairo,sans-serif;font-size:13px;"/>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">المحور / الطريق</div>
+        <input id="edit-road" type="text" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:Cairo,sans-serif;font-size:13px;"/>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">ملاحظات</div>
+        <textarea id="edit-notes" rows="3" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:Cairo,sans-serif;font-size:13px;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+      <button onclick="document.getElementById('edit-ov').style.display='none'" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-family:Cairo,sans-serif;">إلغاء</button>
+      <button id="edit-save-btn" onclick="saveEdit()" style="padding:8px 22px;border-radius:8px;border:none;background:#00c5ff;color:#000;cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;">💾 حفظ</button>
+    </div>
+  </div>
+</div>
 
 <!-- Delete Confirmation Modal -->
 <div id="del-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
