@@ -481,7 +481,6 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <button class="hbtn" id="poly-mode-btn" onclick="togglePolySelect()">⬡ تحديد منطقة</button>
     <button class="hbtn admin-only" id="gis-edit-btn" onclick="toggleGisEdit()">✏️ تعديل الطبقات</button>
     <button class="hbtn admin-only" id="gis-save-btn" onclick="saveGisEdits()" style="display:none;background:rgba(76,175,80,0.2);border-color:#4CAF50;color:#4CAF50;">💾 حفظ التعديلات</button>
-    <button class="hbtn admin-only" onclick="openUsageModal()" title="مساحة السيرفر">🗄️ السيرفر</button>
     <button class="hbtn act" onclick="loadData()">🔄</button>
     <button class="tbtn" id="tbtn" onclick="toggleTheme()" title="ثيم">🌙</button>
     <span id="last-upd" class="blink">تحميل...</span>
@@ -507,6 +506,13 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
         <div style="padding:12px 14px;border-bottom:1px solid var(--border);">
           <div id="menu-name" style="font-size:12px;font-weight:700;color:var(--text);"></div>
           <div id="menu-role" style="font-size:10px;color:var(--accent);margin-top:2px;"></div>
+        </div>
+        <div id="menu-usage-btn" class="admin-only" onclick="openUsageModal();document.getElementById('user-menu').style.display='none';event.stopPropagation();"
+             style="padding:10px 14px;display:flex;align-items:center;gap:8px;
+                    color:var(--accent);font-size:12px;cursor:pointer;transition:background .15s;"
+             onmouseover="this.style.background='var(--panel2)'"
+             onmouseout="this.style.background='transparent'">
+          🗄️ مساحة السيرفر
         </div>
         <div onclick="doLogout();event.stopPropagation();"
              style="padding:10px 14px;display:flex;align-items:center;gap:8px;
