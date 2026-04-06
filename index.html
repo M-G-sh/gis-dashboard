@@ -2132,6 +2132,7 @@ checkAuth();
 
 <script>
 function openUsageModal(){
+  if(!currentIsAdmin) return;
   document.getElementById('usage-ov').style.display='flex';
   loadUsage();
 }
