@@ -1047,7 +1047,7 @@ async function loadData() {
   const el = document.getElementById('last-upd');
   el.textContent='تحميل...'; el.classList.add('blink');
   try {
-    allData = await sbGet('/rest/v1/surveys?select=*&order=captured_at.desc');
+    allData = await sbGet('/rest/v1/surveys?select=id,captured_at,surveyor_name,building_type,floors,latitude,longitude,road_name,notes,thumbnail,photo_name&order=captured_at.desc');
     fillDateSelect();
     applyFilter();
     el.textContent = new Date().toLocaleTimeString('ar');
@@ -1199,12 +1199,10 @@ function renderMap() {
   const bounds=[];
   filtered.forEach((r,i)=>{
     if(!r.latitude||!r.longitude) return;
-    const img = r.photo_url
-      ? `<img src="${r.photo_url}" onclick="openLb('${r.photo_url}')" style="width:100%;border-radius:4px;margin-bottom:6px;cursor:zoom-in;display:block"/>`
-      : r.thumbnail
-        ? `<img src="data:image/jpeg;base64,${r.thumbnail}" style="width:100%;border-radius:4px;margin-bottom:6px;display:block"/>`
-        : '';
-    const cmpBtn = r.photo_url
+    const img = r.thumbnail
+      ? `<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')" style="width:100%;border-radius:4px;margin-bottom:6px;cursor:zoom-in;display:block"/>`
+      : '';
+    const cmpBtn = r.thumbnail
       ? `<button onclick="openCmp(${i})" style="margin-top:4px;padding:4px 10px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:11px;width:100%;font-family:Cairo,sans-serif;font-weight:700">🛰️ مقارنة</button>`
       : '';
     const isSelected = selectedIds.has(r.id);
@@ -1603,9 +1601,8 @@ function renderAttr(){
   d.sort((a,b)=>{const av=a[sortCol]||'',bv=b[sortCol]||'';return sortAsc?(av>bv?1:-1):(av<bv?1:-1);});
   document.getElementById('attr-body').innerHTML=d.map((r,i)=>{
     const mi=filtered.indexOf(r);
-    const th=r.photo_url?`<img src="${r.photo_url}" onclick="openLb('${r.photo_url}')">`:
-              r.thumbnail?`<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLb('data:image/jpeg;base64,${r.thumbnail}')">` :'—';
-    const cb=r.photo_url?`<button onclick="openCmp(${mi})" style="padding:2px 8px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🛰️</button>`:'—';
+    const th=r.thumbnail?`<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')">` :'—';
+    const cb=r.thumbnail?`<button onclick="openCmp(${mi})" style="padding:2px 8px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🛰️</button>`:'—';
     const delBtn= currentIsAdmin
       ? `<button onclick="confirmDelete('${r.id}','${(r.surveyor_name||'').replace(/'/g,"\\'")}','${(r.captured_at||'').substring(0,16).replace('T',' ')}')" style="padding:2px 8px;background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🗑️</button>`
       : `<span style="color:var(--text3);font-size:10px;">—</span>`;
@@ -1692,14 +1689,21 @@ function confirmDelete(id, surveyor, date){
 }
 
 // ── Comparison ────────────────────────────────────
-function openCmp(i){
+async function openCmp(i){
   const r=filtered[i];if(!r)return;
-  document.getElementById('cmp-img').src=r.photo_url||`data:image/jpeg;base64,${r.thumbnail}`;
+  // اعرض الـ thumbnail الأول (فوري)
+  document.getElementById('cmp-img').src=r.thumbnail?`data:image/jpeg;base64,${r.thumbnail}`:'';
   document.getElementById('cmp-ov').classList.add('open');
   setTimeout(()=>{
     if(!cmpMap){cmpMap=L.map('cmp-map',{zoomControl:true});L.tileLayer('https://mt1.google.com/vt/lyrs=s&hl=ar&x={x}&y={y}&z={z}',{attribution:'Google',maxZoom:20}).addTo(cmpMap);}
     cmpMap.setView([r.latitude,r.longitude],18);cmpMap.invalidateSize();L.marker([r.latitude,r.longitude]).addTo(cmpMap);
   },100);
+  // جيب الصورة الكاملة في الخلفية
+  try {
+    const data=await sbGet(`/rest/v1/surveys?select=photo_url&id=eq.${r.id}`);
+    const url=data?.[0]?.photo_url;
+    if(url) document.getElementById('cmp-img').src=url;
+  } catch(_){}
 }
 function closeCmp(){document.getElementById('cmp-ov').classList.remove('open');}
 
