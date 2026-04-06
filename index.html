@@ -1750,21 +1750,15 @@ async function buildXLS(imgCache){
     row.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
     row.font={color:{argb:'FF1a1a1a'}};
     row.eachCell(cell=>{cell.border={bottom:{style:'thin',color:{argb:'FFDDDDDD'}}};});
-    // استخدام الكاش لو موجود، وإلا تحميل مباشر
+    // استخدام الكاش (صور أصلية محملة مسبقاً)
     const cached=imgCache?.get(r.id);
     if(cached){
       const id=wb.addImage({base64:cached.b64,extension:cached.ext});
       ws.addImage(id,{tl:{col:9.05,row:rn-1+0.05},br:{col:10,row:rn},editAs:'oneCell'});
     } else if(r.thumbnail){
+      // fallback: الـ thumbnail لو مفيش كاش
       const id=wb.addImage({base64:r.thumbnail,extension:'jpeg'});
       ws.addImage(id,{tl:{col:9.05,row:rn-1+0.05},br:{col:10,row:rn},editAs:'oneCell'});
-    } else if(r.photo_url){
-      try{
-        const b64=await blobToB64(await(await fetch(r.photo_url)).blob());
-        const ext=r.photo_url.toLowerCase().includes('.png')?'png':'jpeg';
-        const id=wb.addImage({base64:b64,extension:ext});
-        ws.addImage(id,{tl:{col:9.05,row:rn-1+0.05},br:{col:10,row:rn},editAs:'oneCell'});
-      }catch(_){}
     }
     setProg(i+1,filtered.length,`معالجة ${i+1}/${filtered.length}`);
   }
@@ -1804,20 +1798,25 @@ async function dlSQLite(){
 }
 async function dlZip(){
   const zip=new JSZip();
-  const ph=filtered.filter(r=>r.photo_url||r.thumbnail);
+  const ph=filtered.filter(r=>r.thumbnail);
   const tot=ph.length;
-  // ── تحميل كل الصور مرة واحدة ──
+  // ── جيب photo_url لكل السجلات ──
+  setProg(0,tot,'جلب روابط الصور...');
+  const ids=ph.map(r=>r.id).join(',');
+  const photoData=await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
+  const photoMap={};
+  (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
+  // ── تحميل الصور الأصلية من Storage ──
   const imgCache=new Map();
   for(let i=0;i<ph.length;i++){
     const r=ph[i];
     setProg(i,tot,`تحميل صورة ${i+1}/${tot}`);
-    if(r.thumbnail){
-      imgCache.set(r.id,{b64:r.thumbnail,blob:null,ext:'jpeg'});
-    } else if(r.photo_url){
+    const url=photoMap[r.id];
+    if(url){
       try{
-        const blob=await(await fetch(r.photo_url)).blob();
+        const blob=await(await fetch(url)).blob();
         const b64=await blobToB64(blob);
-        const ext=r.photo_url.toLowerCase().includes('.png')?'png':'jpeg';
+        const ext=url.toLowerCase().includes('.png')?'png':'jpeg';
         imgCache.set(r.id,{b64,blob,ext});
       }catch(_){}
     }
@@ -1948,20 +1947,25 @@ async function dlSelected(){
   };
   try{
     const zip=new JSZip();
-    const ph=sel.filter(r=>r.photo_url||r.thumbnail);
+    const ph=sel.filter(r=>r.thumbnail);
     const tot=ph.length;
-    // تحميل الصور مرة واحدة
+    // جيب photo_url لكل السجلات المحددة
+    spProg(0,tot,'جلب روابط الصور...');
+    const ids=ph.map(r=>r.id).join(',');
+    const photoData=await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
+    const photoMap={};
+    (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
+    // تحميل الصور الأصلية من Storage
     const imgCache=new Map();
     for(let i=0;i<ph.length;i++){
       const r=ph[i];
       spProg(i,tot,`تحميل صورة ${i+1}/${tot}`);
-      if(r.thumbnail){
-        imgCache.set(r.id,{b64:r.thumbnail,blob:null,ext:'jpeg'});
-      } else if(r.photo_url){
+      const url=photoMap[r.id];
+      if(url){
         try{
-          const blob=await(await fetch(r.photo_url)).blob();
+          const blob=await(await fetch(url)).blob();
           const b64=await blobToB64(blob);
-          imgCache.set(r.id,{b64,blob,ext:r.photo_url.toLowerCase().includes('.png')?'png':'jpeg'});
+          imgCache.set(r.id,{b64,blob,ext:url.toLowerCase().includes('.png')?'png':'jpeg'});
         }catch(_){}
       }
     }
