@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>توليد الصور المصغرة</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #1a1a1a; color: #fff;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  min-height: 100vh; padding: 30px 20px;
+  gap: 20px;
+}
+h1 { font-size: 22px; color: #00c5ff; }
+p  { color: #aaa; font-size: 14px; text-align: center; }
+#status-box {
+  width: 100%; max-width: 700px;
+  background: #242424; border: 1px solid #3a3a3a;
+  border-radius: 10px; padding: 20px;
+}
+.stat-row {
+  display: flex; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid #333;
+  font-size: 14px;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-label { color: #aaa; }
+.stat-val   { color: #fff; font-weight: 600; }
+.stat-val.green  { color: #71c96e; }
+.stat-val.orange { color: #ff9800; }
+.stat-val.red    { color: #f44336; }
+
+.progress-wrap {
+  width: 100%; max-width: 700px;
+  background: #2e2e2e; border-radius: 8px;
+  height: 18px; overflow: hidden; border: 1px solid #3a3a3a;
+}
+.progress-bar {
+  height: 100%; background: linear-gradient(90deg,#0078d4,#00c5ff);
+  width: 0%; transition: width .3s; border-radius: 8px;
+}
+#log {
+  width: 100%; max-width: 700px;
+  background: #1e1e1e; border: 1px solid #333;
+  border-radius: 8px; padding: 14px;
+  font-family: monospace; font-size: 12px;
+  height: 260px; overflow-y: auto;
+  direction: ltr; text-align: left;
+  color: #ccc;
+}
+.log-ok   { color: #71c96e; }
+.log-err  { color: #f44336; }
+.log-info { color: #00c5ff; }
+.log-warn { color: #ff9800; }
+
+button {
+  padding: 12px 36px; font-size: 16px;
+  background: linear-gradient(135deg,#0078d4,#00c5ff);
+  color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; font-family: inherit; font-weight: 700;
+  transition: opacity .2s;
+}
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.stop-btn {
+  background: linear-gradient(135deg,#c62828,#f44336);
+  margin-top: 6px;
+}
+canvas { display: none; }
+</style>
+</head>
+<body>
+<h1>🖼 توليد الصور المصغرة</h1>
+<p>هذه الأداة تقرأ جميع السجلات، تجلب الصورة الأصلية، تضغطها إلى صورة مصغرة صغيرة<br>وتحفظها في عمود <code>thumbnail</code> في قاعدة البيانات.</p>
+
+<div id="status-box">
+  <div class="stat-row"><span class="stat-label">إجمالي السجلات</span>   <span class="stat-val" id="s-total">—</span></div>
+  <div class="stat-row"><span class="stat-label">لديها صورة URL</span>   <span class="stat-val" id="s-has-url">—</span></div>
+  <div class="stat-row"><span class="stat-label">لديها thumbnail</span>  <span class="stat-val green" id="s-has-thumb">—</span></div>
+  <div class="stat-row"><span class="stat-label">تمت معالجتها</span>     <span class="stat-val green" id="s-done">0</span></div>
+  <div class="stat-row"><span class="stat-label">فشلت</span>             <span class="stat-val red"   id="s-fail">0</span></div>
+  <div class="stat-row"><span class="stat-label">متبقية</span>           <span class="stat-val orange" id="s-remain">—</span></div>
+</div>
+
+<div class="progress-wrap"><div class="progress-bar" id="prog"></div></div>
+
+<button id="startBtn" onclick="startProcess()">▶ ابدأ التوليد</button>
+<button class="stop-btn" id="stopBtn" onclick="stopProcess()" disabled>⏹ إيقاف</button>
+
+<div id="log"></div>
+<canvas id="canvas"></canvas>
+
+<script>
+const SB_URL = "https://vybhexgaslqexppvwzcd.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5YmhleGdhc2xxZXhwcHZ3emNkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzY4OTgzMSwiZXhwIjoyMDg5MjY1ODMxfQ.4KgEcjzPf-qbusffUaUquJNXiBVSySDDhLXisIh93v4";
+const HDR = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+
+const THUMB_SIZE  = 160;   // px (max width or height)
+const JPEG_QUAL   = 0.65;  // JPEG quality 0-1
+const BATCH_DELAY = 150;   // ms between requests (polite rate)
+
+let running = false;
+let canvas, ctx;
+
+function log(msg, cls='') {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setVal(id, v, cls) {
+  const el = document.getElementById(id);
+  el.textContent = v;
+  if (cls) el.className = 'stat-val ' + cls;
+}
+
+function setProgress(done, total) {
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('prog').style.width = pct + '%';
+}
+
+async function sbGet(path) {
+  const r = await fetch(SB_URL + path, { headers: HDR });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbPatch(id, thumbnail) {
+  const r = await fetch(`${SB_URL}/rest/v1/surveys?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { ...HDR, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({ thumbnail })
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+function imageToThumb(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const ratio = Math.min(THUMB_SIZE / img.width, THUMB_SIZE / img.height);
+      const w = Math.round(img.width  * ratio);
+      const h = Math.round(img.height * ratio);
+      canvas.width  = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+      // Get base64 WITHOUT the data:image/jpeg;base64, prefix
+      const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUAL);
+      resolve(dataUrl.split(',')[1]);
+    };
+    img.onerror = () => reject(new Error('Failed to load image: ' + url));
+    img.src = url;
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function startProcess() {
+  if (running) return;
+  running = true;
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled  = false;
+
+  canvas = document.getElementById('canvas');
+  ctx    = canvas.getContext('2d');
+
+  log('جلب السجلات من قاعدة البيانات...', 'log-info');
+
+  let records;
+  try {
+    // Fetch records that have photo_url but no thumbnail
+    records = await sbGet('/rest/v1/surveys?select=id,photo_url,photo_name&thumbnail=is.null&photo_url=not.is.null&order=id&limit=1000');
+    log(`وُجد ${records.length} سجل بدون thumbnail`, 'log-info');
+  } catch(e) {
+    log('خطأ في جلب البيانات: ' + e.message, 'log-err');
+    running = false;
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled  = true;
+    return;
+  }
+
+  // Also get total stats
+  try {
+    const stats = await sbGet('/rest/v1/surveys?select=id,thumbnail,photo_url');
+    const total    = stats.length;
+    const hasUrl   = stats.filter(r => r.photo_url).length;
+    const hasThumb = stats.filter(r => r.thumbnail).length;
+    setVal('s-total',     total);
+    setVal('s-has-url',   hasUrl);
+    setVal('s-has-thumb', hasThumb, 'green');
+    setVal('s-remain',    records.length, 'orange');
+    setProgress(0, records.length);
+  } catch(_) {}
+
+  let done = 0, fail = 0;
+
+  for (let i = 0; i < records.length; i++) {
+    if (!running) { log('⏹ تم الإيقاف بواسطة المستخدم.', 'log-warn'); break; }
+
+    const rec = records[i];
+    if (!rec.photo_url) { log(`[${rec.id}] لا يوجد photo_url — تخطي`, 'log-warn'); fail++; continue; }
+
+    try {
+      const thumb = await imageToThumb(rec.photo_url);
+      await sbPatch(rec.id, thumb);
+      done++;
+      const name = rec.photo_name || rec.id;
+      log(`✓ [${rec.id}] ${name}  (${thumb.length} chars)`, 'log-ok');
+    } catch(e) {
+      fail++;
+      log(`✗ [${rec.id}] ${e.message}`, 'log-err');
+    }
+
+    setVal('s-done',   done,  'green');
+    setVal('s-fail',   fail,  fail > 0 ? 'red' : '');
+    setVal('s-remain', records.length - done - fail, 'orange');
+    setProgress(done + fail, records.length);
+
+    // Update thumbnail count in header
+    setVal('s-has-thumb', done, 'green');
+
+    await sleep(BATCH_DELAY);
+  }
+
+  log(`══ انتهى ══  نجح: ${done}  فشل: ${fail}`, 'log-info');
+  running = false;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled  = true;
+}
+
+function stopProcess() {
+  running = false;
+}
+
+// Load stats on page load
+window.addEventListener('load', async () => {
+  try {
+    const stats = await sbGet('/rest/v1/surveys?select=id,thumbnail,photo_url');
+    const total    = stats.length;
+    const hasUrl   = stats.filter(r => r.photo_url).length;
+    const hasThumb = stats.filter(r => r.thumbnail).length;
+    setVal('s-total',     total);
+    setVal('s-has-url',   hasUrl,   hasUrl   > 0 ? 'green'  : 'red');
+    setVal('s-has-thumb', hasThumb, hasThumb > 0 ? 'green'  : 'orange');
+    setVal('s-remain',    hasUrl - hasThumb, (hasUrl - hasThumb) > 0 ? 'orange' : 'green');
+    log('جاهز. اضغط "ابدأ التوليد" لبدء العملية.', 'log-info');
+  } catch(e) {
+    log('خطأ في تحميل الإحصائيات: ' + e.message, 'log-err');
+  }
+});
+</script>
+</body>
+</html>
