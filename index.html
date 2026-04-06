@@ -2101,16 +2101,31 @@ checkAuth();
 </div>
 <!-- ══ Usage Modal ══ -->
 <div id="usage-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px;width:min(480px,95vw);font-family:Cairo,sans-serif;direction:rtl;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px;width:min(580px,95vw);font-family:Cairo,sans-serif;direction:rtl;max-height:90vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <h3 style="font-size:16px;color:var(--accent);">🗄️ مساحة السيرفر المجاني</h3>
+      <h3 style="font-size:16px;color:var(--accent);">🗄️ مساحة السيرفر</h3>
       <button onclick="closeUsageModal()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <!-- خطتين جنب بعض -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">الخطة الحالية</div>
+        <div style="font-size:14px;font-weight:700;color:#00c5ff;">PRO</div>
+        <div style="font-size:11px;color:var(--text3);">$25/شهر</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text2);">DB: 8 GB | Storage: 100 GB<br>Egress: 250 GB</div>
+      </div>
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">لو رجعت</div>
+        <div style="font-size:14px;font-weight:700;color:#71c96e;">FREE</div>
+        <div style="font-size:11px;color:var(--text3);">$0/شهر</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text2);">DB: 500 MB | Storage: 1 GB<br>Egress: 5 GB</div>
+      </div>
     </div>
     <div id="usage-content" style="display:flex;flex-direction:column;gap:16px;">
       <div style="text-align:center;color:var(--text3);padding:20px;">جاري التحميل...</div>
     </div>
     <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);text-align:center;">
-      الخطة المجانية من Supabase — يتجدد كل شهر
+      Pro Plan — ينتهي 6 مايو 2026 • حمّل الـ backup قبل الانتهاء
     </div>
   </div>
 </div>
@@ -2179,38 +2194,64 @@ async function loadUsage(){
     const totalStorageMB = storageInfo.reduce((s,b)=>s+b.sizeMB,0);
     let html = '';
 
+    const dbUsed = dbMB||38;
+    const stUsed = totalStorageMB||685;
+
     // قاعدة البيانات
     html += `<div>
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <span style="font-size:13px;font-weight:700;">💾 قاعدة البيانات</span>
         <span style="font-size:11px;color:var(--text3);">${totalRec} سجل • ${thumbCount} thumbnail</span>
       </div>
-      ${dbMB!==null ? usageBar(dbMB,500,'MB') : usageBar(38,500,'MB')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:var(--panel2);border-radius:6px;padding:8px;">
+          <div style="font-size:10px;color:#00c5ff;margin-bottom:4px;">PRO (8 GB)</div>
+          ${usageBar(dbUsed,8192,'MB')}
+        </div>
+        <div style="background:var(--panel2);border-radius:6px;padding:8px;">
+          <div style="font-size:10px;color:#71c96e;margin-bottom:4px;">FREE (500 MB)</div>
+          ${usageBar(dbUsed,500,'MB')}
+        </div>
+      </div>
     </div>`;
 
     // Storage
     html += `<div>
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <span style="font-size:13px;font-weight:700;">🖼️ مساحة الصور (Storage)</span>
         <span style="font-size:11px;color:var(--text3);">${storageInfo.map(b=>`${b.name}: ${b.count} ملف`).join(' • ')||'—'}</span>
       </div>
-      ${usageBar(totalStorageMB||685,1024,'MB')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="background:var(--panel2);border-radius:6px;padding:8px;">
+          <div style="font-size:10px;color:#00c5ff;margin-bottom:4px;">PRO (100 GB)</div>
+          ${usageBar(stUsed,102400,'MB')}
+        </div>
+        <div style="background:var(--panel2);border-radius:6px;padding:8px;">
+          <div style="font-size:10px;color:#71c96e;margin-bottom:4px;">FREE (1 GB)</div>
+          ${usageBar(stUsed,1024,'MB')}
+        </div>
+      </div>
     </div>`;
 
-    // Egress (تقريبي)
+    // Egress
     html += `<div style="background:var(--panel2);border-radius:8px;padding:12px;">
-      <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">📡 Egress (نقل البيانات)</div>
-      <div style="font-size:11px;color:#ff9800;">⚠️ الـ Egress لا يمكن قياسه مباشرة — راقبه من Supabase Dashboard</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px;">الحد المجاني: 5 GB شهرياً • بعد التحسين: استهلاكك هيقل بشكل كبير</div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px;">📡 Egress (نقل البيانات)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;color:var(--text2);">
+        <div>🔵 PRO: 250 GB شهرياً</div>
+        <div>🟢 FREE: 5 GB شهرياً</div>
+      </div>
+      <div style="font-size:11px;color:#71c96e;margin-top:6px;">✅ بعد تحسين الـ thumbnails — استهلاكك قريب من الصفر</div>
     </div>`;
 
     // ملخص
+    const stOkFree = stUsed < 1024;
+    const dbOkFree = dbUsed < 500;
     html += `<div style="background:rgba(0,197,255,0.08);border:1px solid rgba(0,197,255,0.2);border-radius:8px;padding:12px;font-size:12px;">
-      <div style="color:var(--accent);font-weight:700;margin-bottom:6px;">✅ وضعك الحالي</div>
-      <div style="color:var(--text2);line-height:1.8;">
-        • قاعدة البيانات: ${dbMB?dbMB.toFixed(1):'~38'} MB من 500 MB<br>
-        • الصور: ${totalStorageMB.toFixed(0)||685} MB من 1024 MB<br>
-        • الـ thumbnails في الـ DB توفّر ~99% من الـ Egress
+      <div style="color:var(--accent);font-weight:700;margin-bottom:8px;">📊 لو رجعت Free — هل ينفع؟</div>
+      <div style="line-height:2;">
+        <span style="color:${dbOkFree?'#71c96e':'#f44336'}">${dbOkFree?'✅':'❌'} قاعدة البيانات: ${dbUsed.toFixed(0)} MB من 500 MB</span><br>
+        <span style="color:${stOkFree?'#71c96e':'#f44336'}">${stOkFree?'✅':'❌'} الصور: ${stUsed.toFixed(0)} MB من 1024 MB ${stOkFree?'':'← لازم تحذف صور'}</span><br>
+        <span style="color:#71c96e">✅ Egress: آمن بعد تحسين الـ thumbnails</span>
       </div>
     </div>`;
 
