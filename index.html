@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
@@ -1061,7 +1063,7 @@ async function loadData() {
   const el = document.getElementById('last-upd');
   el.textContent='تحميل...'; el.classList.add('blink');
   try {
-    allData = await sbGet('/rest/v1/surveys?select=id,captured_at,surveyor_name,building_type,floors,latitude,longitude,road_name,notes,thumbnail,photo_name&order=captured_at.desc');
+    allData = await sbGet('/rest/v1/surveys?select=id,captured_at,surveyor_name,building_type,floors,latitude,longitude,road_name,notes,thumbnail,photo_name,is_panorama&order=captured_at.desc');
     fillDateSelect();
     applyFilter();
     el.textContent = new Date().toLocaleTimeString('ar');
@@ -1213,8 +1215,9 @@ function renderMap() {
   const bounds=[];
   filtered.forEach((r,i)=>{
     if(!r.latitude||!r.longitude) return;
+    const panoBadge = r.is_panorama ? `<div style="background:#1565C0;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:4px;display:inline-block;">🌐 360°</div>` : '';
     const img = r.thumbnail
-      ? `<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')" style="width:100%;border-radius:4px;margin-bottom:6px;cursor:zoom-in;display:block"/>`
+      ? `${panoBadge}<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')" style="width:100%;border-radius:4px;margin-bottom:6px;cursor:zoom-in;display:block"/>`
       : '';
     const cmpBtn = r.thumbnail
       ? `<button onclick="openCmp(${i})" style="margin-top:4px;padding:4px 10px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:11px;width:100%;font-family:Cairo,sans-serif;font-weight:700">🛰️ مقارنة</button>`
@@ -1589,6 +1592,38 @@ function renderChart() {
 let lbUrl='';
 function openLb(u){lbUrl=u;document.getElementById('lb-img').src=u;document.getElementById('lightbox').classList.add('open');}
 function closeLb(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lb-img').src='';}
+
+async function openLbById(id){
+  const r=allData.find(x=>x.id===id); if(!r) return;
+  const thumb=r.thumbnail?`data:image/jpeg;base64,${r.thumbnail}`:'';
+  // جيب الصورة الكاملة
+  try{
+    const data=await sbGet(`/rest/v1/surveys?select=photo_url,is_panorama&id=eq.${id}`);
+    const url=data?.[0]?.photo_url;
+    const pano=data?.[0]?.is_panorama;
+    if(url && pano){ openPanorama(url); return; }
+    if(url){ lbUrl=url; document.getElementById('lb-img').src=url; document.getElementById('lightbox').classList.add('open'); return; }
+  }catch(_){}
+  if(thumb){ lbUrl=thumb; document.getElementById('lb-img').src=thumb; document.getElementById('lightbox').classList.add('open'); }
+}
+
+let pannellumViewer=null;
+function openPanorama(url){
+  document.getElementById('pano-ov').style.display='flex';
+  if(pannellumViewer){ pannellumViewer.destroy(); pannellumViewer=null; }
+  pannellumViewer=pannellum.viewer('pano-container',{
+    type:'equirectangular', panorama:url,
+    autoLoad:true, showControls:true,
+    compass:true, northOffset:0,
+    hfov:100, minHfov:50, maxHfov:120,
+    autoRotate:-2,
+    strings:{ loadButtonLabel:'تحميل', loadingLabel:'جاري التحميل...' }
+  });
+}
+function closePanorama(){
+  document.getElementById('pano-ov').style.display='none';
+  if(pannellumViewer){ pannellumViewer.destroy(); pannellumViewer=null; }
+}
 function dlPhoto(){const a=document.createElement('a');a.href=lbUrl;a.download=lbUrl.split('/').pop();a.target='_blank';a.click();}
 
 // ── Attr Panel (bottom) ──────────────────────────
@@ -2099,6 +2134,15 @@ checkAuth();
     </div>
   </div>
 </div>
+<!-- ══ Panorama Modal ══ -->
+<div id="pano-ov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;">
+  <div style="position:absolute;top:12px;right:12px;z-index:10000;display:flex;gap:8px;">
+    <span style="background:rgba(0,0,0,.6);color:#64b5f6;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">🌐 بانوراما 360°</span>
+    <button onclick="closePanorama()" style="background:rgba(0,0,0,.6);border:none;color:#fff;font-size:22px;cursor:pointer;border-radius:50%;width:36px;height:36px;">✕</button>
+  </div>
+  <div id="pano-container" style="width:100%;height:100%;"></div>
+</div>
+
 <!-- ══ Usage Modal ══ -->
 <div id="usage-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
   <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px;width:min(580px,95vw);font-family:Cairo,sans-serif;direction:rtl;max-height:90vh;overflow-y:auto;">
