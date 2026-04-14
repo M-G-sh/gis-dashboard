@@ -1846,46 +1846,53 @@ async function dlSQLite(){
   setProg(1,1,'✅ SQLite');
 }
 async function dlZip(){
-  const zip=new JSZip();
-  const ph=filtered.filter(r=>r.thumbnail);
-  const tot=ph.length;
-  // ── جيب photo_url لكل السجلات ──
+  const BATCH = 40; // 40 صورة في كل ZIP
+  const ph = filtered.filter(r=>r.thumbnail);
+  const tot = ph.length;
+  const batches = Math.ceil(tot/BATCH);
+
+  // جيب كل الـ photo_url مرة واحدة
   setProg(0,tot,'جلب روابط الصور...');
-  const ids=ph.map(r=>r.id).join(',');
-  const photoData=await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
-  const photoMap={};
+  const ids = ph.map(r=>r.id).join(',');
+  const photoData = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
+  const photoMap = {};
   (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
-  // ── تحميل الصور الأصلية من Storage ──
-  const imgCache=new Map();
-  for(let i=0;i<ph.length;i++){
-    const r=ph[i];
-    setProg(i,tot,`تحميل صورة ${i+1}/${tot}`);
-    const url=photoMap[r.id];
-    if(url){
+
+  // بناء CSV للبيانات مرة واحدة
+  const cols=['id','captured_at','surveyor_name','building_type','floors','latitude','longitude','road_name','notes','photo_name'];
+  const hdr=['المعرف','التاريخ','المساح','النوع','الأدوار','خط العرض','خط الطول','المحور','ملاحظات','اسم الصورة'];
+  const csvData='\uFEFF'+[hdr.join(','),...filtered.map(r=>cols.map(c=>{const v=r[c]??'';return String(v).includes(',')?`"${v}"`:v;}).join(','))].join('\n');
+
+  let globalDone=0;
+  for(let b=0;b<batches;b++){
+    const chunk = ph.slice(b*BATCH, (b+1)*BATCH);
+    const zip = new JSZip();
+
+    // أضيف الـ CSV في أول ZIP بس
+    if(b===0) zip.file('data.csv', csvData);
+
+    const pf = zip.folder('الصور');
+    for(let i=0;i<chunk.length;i++){
+      const r=chunk[i];
+      globalDone++;
+      setProg(globalDone,tot,`تحميل ${globalDone}/${tot} — دفعة ${b+1}/${batches}`);
+      const url=photoMap[r.id];
+      if(!url) continue;
       try{
         const blob=await(await fetch(url)).blob();
-        const b64=await blobToB64(blob);
-        const ext=url.toLowerCase().includes('.png')?'png':'jpeg';
-        imgCache.set(r.id,{b64,blob,ext});
+        const fname=r.photo_name||(r.id+'.jpg');
+        pf.file(fname,blob);
       }catch(_){}
     }
+
+    setProg(globalDone,tot,`ضغط دفعة ${b+1}/${batches}...`);
+    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+    const suffix=batches>1?`_part${b+1}of${batches}`:'';
+    saveAs(zipBlob,`gis_photos${suffix}_${new Date().toISOString().substring(0,10)}.zip`);
+
+    // استنى ثانية بين الدفعات عشان المتصفح ميتعبش
+    if(b<batches-1) await new Promise(r=>setTimeout(r,1000));
   }
-  // ── بناء ملف البيانات مع الصور من الكاش ──
-  if(dlFmt==='xlsx'){const wb=await buildXLS(imgCache);zip.file('data.xlsx',await wb.xlsx.writeBuffer());}
-  else if(dlFmt==='sqlite'){const SQL=await initSqlJs({locateFile:f=>`https://sql.js.org/dist/${f}`});const db=new SQL.Database();db.run(`CREATE TABLE surveys(id TEXT,captured_at TEXT,surveyor_name TEXT,building_type TEXT,floors INTEGER,latitude REAL,longitude REAL,road_name TEXT,notes TEXT,photo_name TEXT,photo_url TEXT)`);const st=db.prepare(`INSERT INTO surveys VALUES(?,?,?,?,?,?,?,?,?,?,?)`);filtered.forEach(r=>st.run([r.id||null,r.captured_at||null,r.surveyor_name||null,r.building_type||null,r.floors??null,r.latitude||null,r.longitude||null,r.road_name||null,r.notes||null,r.photo_name||null,r.photo_url||null]));st.free();zip.file('data.db',db.export());}
-  else{const cols=['id','captured_at','surveyor_name','building_type','floors','latitude','longitude','road_name','notes','photo_name','photo_url'];zip.file('data.csv','\uFEFF'+[cols.join(','),...filtered.map(r=>cols.map(c=>r[c]??'').join(','))].join('\n'));}
-  // ── إضافة الصور في فولدر منفصل من الكاش ──
-  const pf=zip.folder('الصور');
-  for(const r of ph){
-    const fname=r.photo_name||(r.id+'.jpg');
-    const cached=imgCache.get(r.id);
-    if(!cached) continue;
-    if(cached.blob) pf.file(fname,cached.blob);
-    else{const bin=atob(cached.b64);const arr=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)arr[k]=bin.charCodeAt(k);pf.file(fname,arr);}
-  }
-  setProg(tot,tot,'ضغط...');
-  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'},m=>setProg(m.percent,100,`ضغط ${Math.round(m.percent)}%`));
-  saveAs(blob,`gis_${new Date().toISOString().substring(0,10)}.zip`);
 }
 function downloadCSV(){dlCSV();}
 
