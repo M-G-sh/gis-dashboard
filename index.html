@@ -307,7 +307,9 @@ header {
 
 /* ═══ LIGHTBOX ═══ */
 #lightbox { flex-direction:column; gap:10px; }
-#lightbox img { max-width:92vw; max-height:85vh; border-radius:6px; box-shadow:0 8px 40px rgba(0,0,0,.7); }
+#lightbox img { max-width:92vw; max-height:85vh; border-radius:6px; box-shadow:0 8px 40px rgba(0,0,0,.7); image-rendering:auto; }
+#lightbox img.is-thumb { max-width:320px; max-height:320px; image-rendering:pixelated; }
+#lb-thumb-note { display:none; font-size:12px; color:#ff9800; background:rgba(0,0,0,.6); padding:4px 12px; border-radius:4px; }
 #lb-dl {
   padding:7px 22px; background:var(--accent); color:#000;
   border:none; border-radius:4px; cursor:pointer; font-size:12px;
@@ -744,6 +746,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 <!-- ═══ LIGHTBOX ═══ -->
 <div id="lightbox" class="ov" onclick="if(event.target===this)closeLb()">
   <img id="lb-img" src="" alt=""/>
+  <div id="lb-thumb-note">⚠️ معاينة مصغرة — الصورة الأصلية غير متاحة</div>
   <button id="lb-dl" onclick="dlPhoto()">📥 تحميل الصورة</button>
 </div>
 
@@ -786,14 +789,14 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       </div>
 
       <div class="tog-row" onclick="togPhotos()">
-        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation()"/>
+        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation();dlPh=this.checked;"/>
         <div>
           <div class="tog-tl">📷 تضمين الصور (ZIP)</div>
           <div class="tog-td">ملف مضغوط يحتوي البيانات + الصور</div>
         </div>
       </div>
 
-      <button class="dl-btn" id="dl-btn" onclick="startDl()">📥 تحميل الآن</button>
+      <button class="dl-btn" id="dl-btn" onclick="dlBtnClick()">📥 تحميل الآن</button>
       <div id="dl-prog-wrap">
         <div class="prog-tr"><div class="prog-fl" id="dl-prog-fl"></div></div>
         <div id="dl-prog-txt"></div>
@@ -1589,22 +1592,47 @@ function renderChart() {
 }
 
 // ── Lightbox ──────────────────────────────────────
-let lbUrl='';
+let lbUrl='', lbThumb='', lbName='photo.jpg';
 function openLb(u){lbUrl=u;document.getElementById('lb-img').src=u;document.getElementById('lightbox').classList.add('open');}
-function closeLb(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lb-img').src='';}
+function closeLb(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lb-img').src='';lbUrl='';lbThumb='';}
 
 async function openLbById(id){
   const r=allData.find(x=>x.id===id); if(!r) return;
   const thumb=r.thumbnail?`data:image/jpeg;base64,${r.thumbnail}`:'';
-  // جيب الصورة الكاملة
+  lbThumb=thumb;
+  lbName=r.photo_name||(id+'.jpg');
+
+  const lbImg=document.getElementById('lb-img');
+  const lbNote=document.getElementById('lb-thumb-note');
+
+  // اعرض الـ thumbnail فورًا بحجمه الطبيعي
+  if(thumb){
+    lbUrl=thumb;
+    lbImg.src=thumb;
+    lbImg.className='is-thumb';
+    lbNote.style.display='block';
+    document.getElementById('lightbox').classList.add('open');
+  }
+
+  // جرب تحمل الصورة الأصلية في الخلفية
   try{
     const data=await sbGet(`/rest/v1/surveys?select=photo_url,is_panorama&id=eq.${id}`);
     const url=data?.[0]?.photo_url;
     const pano=data?.[0]?.is_panorama;
-    if(url && pano){ openPanorama(url); return; }
-    if(url){ lbUrl=url; document.getElementById('lb-img').src=url; document.getElementById('lightbox').classList.add('open'); return; }
+    if(url && pano){ closeLb(); openPanorama(url); return; }
+    if(url){
+      const testImg=new Image();
+      testImg.onload=()=>{
+        lbUrl=url; lbImg.src=url;
+        lbImg.className=''; // حجم طبيعي كامل
+        lbNote.style.display='none';
+      };
+      testImg.onerror=()=>{ lbUrl=thumb; }; // محذوفة → فضل thumbnail
+      testImg.src=url;
+    }
   }catch(_){}
-  if(thumb){ lbUrl=thumb; document.getElementById('lb-img').src=thumb; document.getElementById('lightbox').classList.add('open'); }
+
+  if(!thumb) document.getElementById('lightbox').classList.add('open');
 }
 
 let pannellumViewer=null;
@@ -1624,7 +1652,46 @@ function closePanorama(){
   document.getElementById('pano-ov').style.display='none';
   if(pannellumViewer){ pannellumViewer.destroy(); pannellumViewer=null; }
 }
-function dlPhoto(){const a=document.createElement('a');a.href=lbUrl;a.download=lbUrl.split('/').pop();a.target='_blank';a.click();}
+async function dlPhoto(){
+  const btn=document.getElementById('lb-dl');
+  btn.disabled=true; btn.textContent='⏳ جاري التحميل...';
+  try{
+    // لو lbUrl هو data URL → حول لـ blob واحفظه
+    if(lbUrl && lbUrl.startsWith('data:')){
+      const res=await fetch(lbUrl);
+      const blob=await res.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=lbName;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    } else if(lbUrl){
+      // حاول تحمل الصورة الأصلية
+      try{
+        const res=await fetch(lbUrl);
+        if(!res.ok) throw new Error('404');
+        const blob=await res.blob();
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=lbName;
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      }catch(_){
+        // الصورة الأصلية محذوفة → حمل الـ thumbnail
+        if(lbThumb){
+          const res=await fetch(lbThumb);
+          const blob=await res.blob();
+          const a=document.createElement('a');
+          a.href=URL.createObjectURL(blob);
+          a.download=lbName;
+          a.click();
+          setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+        }
+      }
+    }
+  }catch(e){ alert('خطأ في التحميل: '+e.message); }
+  btn.disabled=false; btn.textContent='📥 تحميل الصورة';
+}
 
 // ── Attr Panel (bottom) ──────────────────────────
 function openAttr(){
@@ -1765,7 +1832,14 @@ function openDl(){
   document.getElementById('dl-btn').disabled=false;
   document.getElementById('dl-ov').classList.add('open');
 }
-function closeDl(){document.getElementById('dl-ov').classList.remove('open');}
+function closeDl(){
+  document.getElementById('dl-ov').classList.remove('open');
+  _dlBatchState=null;
+  const btn=document.getElementById('dl-btn');
+  btn.textContent='📥 تحميل الآن';
+  btn.style.background='';
+  btn.disabled=false;
+}
 function selFmt(f){dlFmt=f;['xlsx','csv','sqlite'].forEach(x=>document.getElementById('fmt-'+x).classList.toggle('sel',x===f));}
 function togPhotos(){const c=document.getElementById('dl-ph-chk');c.checked=!c.checked;dlPh=c.checked;}
 function setProg(cur,tot,msg){
@@ -1845,53 +1919,95 @@ async function dlSQLite(){
   saveAs(new Blob([db.export()],{type:'application/octet-stream'}),`gis_${new Date().toISOString().substring(0,10)}.db`);
   setProg(1,1,'✅ SQLite');
 }
+// متغيرات الـ batch
+let _dlBatchState=null;
+function dlBtnClick(){
+  if(_dlBatchState && _dlBatchState.curBatch < _dlBatchState.batches){
+    dlNextBatch();
+  } else {
+    startDl();
+  }
+}
 async function dlZip(){
-  const BATCH = 40; // 40 صورة في كل ZIP
-  const ph = filtered.filter(r=>r.thumbnail);
-  const tot = ph.length;
+  const BATCH = 30;
+  const allRecs = filtered.slice();
+  const tot = allRecs.length;
   const batches = Math.ceil(tot/BATCH);
 
   // جيب كل الـ photo_url مرة واحدة
   setProg(0,tot,'جلب روابط الصور...');
-  const ids = ph.map(r=>r.id).join(',');
-  const photoData = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
+  const withPhoto = allRecs.filter(r=>r.thumbnail);
   const photoMap = {};
-  (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
+  if(withPhoto.length){
+    const ids = withPhoto.map(r=>r.id).join(',');
+    const photoData = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
+    (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
+  }
 
-  // بناء CSV للبيانات مرة واحدة
-  const cols=['id','captured_at','surveyor_name','building_type','floors','latitude','longitude','road_name','notes','photo_name'];
-  const hdr=['المعرف','التاريخ','المساح','النوع','الأدوار','خط العرض','خط الطول','المحور','ملاحظات','اسم الصورة'];
-  const csvData='\uFEFF'+[hdr.join(','),...filtered.map(r=>cols.map(c=>{const v=r[c]??'';return String(v).includes(',')?`"${v}"`:v;}).join(','))].join('\n');
+  _dlBatchState = { allRecs, tot, batches, withPhoto, photoMap, curBatch:0, globalDone:0 };
+  await dlNextBatch();
+}
 
-  let globalDone=0;
-  for(let b=0;b<batches;b++){
-    const chunk = ph.slice(b*BATCH, (b+1)*BATCH);
-    const zip = new JSZip();
+async function dlNextBatch(){
+  const s = _dlBatchState;
+  if(!s || s.curBatch >= s.batches) return;
 
-    // أضيف الـ CSV في أول ZIP بس
-    if(b===0) zip.file('data.csv', csvData);
+  document.getElementById('dl-btn').disabled=true;
 
-    const pf = zip.folder('الصور');
-    for(let i=0;i<chunk.length;i++){
-      const r=chunk[i];
-      globalDone++;
-      setProg(globalDone,tot,`تحميل ${globalDone}/${tot} — دفعة ${b+1}/${batches}`);
-      const url=photoMap[r.id];
-      if(!url) continue;
-      try{
-        const blob=await(await fetch(url)).blob();
-        const fname=r.photo_name||(r.id+'.jpg');
-        pf.file(fname,blob);
-      }catch(_){}
-    }
+  const b = s.curBatch;
+  const chunk = s.allRecs.slice(b*30, (b+1)*30);
+  const chunkWithPhoto = chunk.filter(r=>r.thumbnail);
+  const zip = new JSZip();
+  const pf = zip.folder('الصور');
+  const imgCache = new Map();
 
-    setProg(globalDone,tot,`ضغط دفعة ${b+1}/${batches}...`);
-    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
-    const suffix=batches>1?`_part${b+1}of${batches}`:'';
-    saveAs(zipBlob,`gis_photos${suffix}_${new Date().toISOString().substring(0,10)}.zip`);
+  // تحميل الصور الأصلية للدفعة الحالية
+  for(let i=0;i<chunkWithPhoto.length;i++){
+    const r=chunkWithPhoto[i];
+    s.globalDone++;
+    setProg(s.globalDone, s.withPhoto.length, `تحميل صورة ${s.globalDone}/${s.withPhoto.length} — دفعة ${b+1}/${s.batches}`);
+    const url=s.photoMap[r.id];
+    if(!url) continue;
+    try{
+      const blob=await(await fetch(url)).blob();
+      const b64=await blobToB64(blob);
+      const ext=url.toLowerCase().includes('.png')?'png':'jpeg';
+      imgCache.set(r.id,{b64,blob,ext});
+      const fname=r.photo_name||(r.id+'.jpg');
+      pf.file(fname,blob);
+    }catch(_){}
+  }
 
-    // استنى ثانية بين الدفعات عشان المتصفح ميتعبش
-    if(b<batches-1) await new Promise(r=>setTimeout(r,1000));
+  // بناء Excel بالصور مدمجة
+  setProg(s.globalDone, s.withPhoto.length, `بناء Excel دفعة ${b+1}/${s.batches}...`);
+  const prevFiltered=filtered;
+  filtered=chunk;
+  const wb=await buildXLS(imgCache);
+  filtered=prevFiltered;
+  zip.file(`data_part${b+1}of${s.batches}.xlsx`, await wb.xlsx.writeBuffer());
+
+  setProg(s.globalDone, s.withPhoto.length, `ضغط دفعة ${b+1}/${s.batches}...`);
+  const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+  const suffix=s.batches>1?`_part${b+1}of${s.batches}`:'';
+  saveAs(zipBlob,`gis_backup${suffix}_${new Date().toISOString().substring(0,10)}.zip`);
+
+  imgCache.clear();
+  s.curBatch++;
+
+  if(s.curBatch < s.batches){
+    // تغيير نص الزرار للدفعة التالية
+    const btn=document.getElementById('dl-btn');
+    btn.textContent=`⏭ دفعة ${s.curBatch+1} من ${s.batches} — اضغط للتحميل`;
+    btn.style.background='linear-gradient(135deg,#e65100,#ff9800)';
+    btn.disabled=false;
+    setProg(s.globalDone, s.withPhoto.length, `✅ دفعة ${b+1} جاهزة — اضغط الزرار للدفعة التالية`);
+  } else {
+    setProg(1,1,`✅ اكتمل! ${s.batches} ملف ZIP`);
+    const btn=document.getElementById('dl-btn');
+    btn.textContent='📥 تحميل الآن';
+    btn.style.background='';
+    btn.disabled=false;
+    _dlBatchState=null;
   }
 }
 function downloadCSV(){dlCSV();}
