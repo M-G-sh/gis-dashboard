@@ -1937,12 +1937,8 @@ async function dlZip(){
   // جيب كل الـ photo_url مرة واحدة
   setProg(0,tot,'جلب روابط الصور...');
   const withPhoto = allRecs.filter(r=>r.thumbnail);
+  // photoMap هيتملى lazily جوا كل batch عشان نقلل الضغط على DB
   const photoMap = {};
-  if(withPhoto.length){
-    const ids = withPhoto.map(r=>r.id).join(',');
-    const photoData = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
-    (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
-  }
 
   _dlBatchState = { allRecs, tot, batches, withPhoto, photoMap, curBatch:0, globalDone:0 };
   await dlNextBatch();
@@ -1960,6 +1956,16 @@ async function dlNextBatch(){
   const zip = new JSZip();
   const pf = zip.folder('الصور');
   const imgCache = new Map();
+
+  // جلب photo_url للدفعة الحالية فقط (30 سجل بدل كل السجلات)
+  setProg(s.globalDone, s.withPhoto.length, `جلب روابط دفعة ${b+1}/${s.batches}...`);
+  const batchIds = chunkWithPhoto.map(r=>r.id).join(',');
+  if(batchIds){
+    try{
+      const batchUrls = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${batchIds})`);
+      (batchUrls||[]).forEach(r=>{ s.photoMap[r.id]=r.photo_url; });
+    }catch(_){}
+  }
 
   // تحميل الصور الأصلية للدفعة الحالية
   for(let i=0;i<chunkWithPhoto.length;i++){
