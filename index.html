@@ -560,11 +560,22 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
              border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
              margin-bottom:10px;outline:none;text-align:right"/>
-    <input id="login-pass" type="password" placeholder="كلمة المرور"
-      style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
-             border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
-             margin-bottom:14px;outline:none;text-align:right"
-      onkeydown="if(event.key==='Enter')doLogin()"/>
+    <div style="position:relative;margin-bottom:14px;">
+      <input id="login-pass" type="password" placeholder="كلمة المرور"
+        style="width:100%;padding:12px 40px 12px 14px;background:#0d1117;border:1px solid #2d3f55;
+               border-radius:10px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;
+               outline:none;text-align:right"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
+      <button type="button" onclick="
+          const i=document.getElementById('login-pass');
+          const b=this;
+          if(i.type==='password'){i.type='text';b.textContent='🙈';}
+          else{i.type='password';b.textContent='👁️';}
+        "
+        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+               background:none;border:none;cursor:pointer;font-size:18px;
+               line-height:1;padding:0;color:#607d9e;">👁️</button>
+    </div>
     <div id="login-err" style="color:#f44336;font-size:12px;margin-bottom:10px;min-height:16px"></div>
     <button id="login-btn" onclick="doLogin()"
       style="width:100%;padding:13px;border-radius:10px;border:none;
