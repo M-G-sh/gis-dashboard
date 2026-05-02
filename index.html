@@ -1781,6 +1781,7 @@ function toggleExportMenu(e){
     {icon:'📄',label:'تصدير KML',sub:'Google Earth / Maps',fn:'exportKML()'},
     {icon:'🗺️',label:'تصدير GeoJSON',sub:'QGIS / ArcGIS',fn:'exportGeoJSON()'},
     {icon:'📊',label:'تصدير CSV',sub:'Excel / جداول',fn:'downloadCSV()'},
+    {icon:'🖨️',label:'تقرير PDF',sub:'طباعة أو حفظ PDF',fn:'generatePDF()'},
   ].map(x=>`<div class="gis-lrow" onclick="${x.fn};document.getElementById('export-dropdown').style.display='none'">
     <span>${x.icon} ${x.label}</span>
     <span style="font-size:10px;color:var(--text3);">${x.sub}</span>
@@ -1897,6 +1898,130 @@ async function exportGeoJSON(){
     }
   }));
   saveAs(new Blob([JSON.stringify({type:'FeatureCollection',features},null,2)],{type:'application/json'}),`survey_${new Date().toISOString().slice(0,10)}.geojson`);
+}
+
+// ── PDF Report ────────────────────────────────────
+function generatePDF() {
+  const d = filtered;
+  if(!d.length){alert('لا توجد بيانات');return;}
+
+  // ── إحصائيات ──
+  const total   = d.length;
+  const days    = new Set(d.map(r=>(r.captured_at||'').slice(0,10)).filter(Boolean)).size;
+  const typed   = d.filter(r=>r.building_type).length;
+  const withPh  = d.filter(r=>r.thumbnail).length;
+
+  // توزيع الأنواع
+  const typeCnt={};
+  d.forEach(r=>{const t=r.building_type||'غير محدد';typeCnt[t]=(typeCnt[t]||0)+1;});
+  const typeRows=Object.entries(typeCnt).sort((a,b)=>b[1]-a[1]);
+  const maxT=typeRows[0]?.[1]||1;
+
+  // إنتاج المساحين
+  const srvCnt={};
+  d.forEach(r=>{const n=r.surveyor_name||'غير محدد';srvCnt[n]=(srvCnt[n]||0)+1;});
+  const srvRows=Object.entries(srvCnt).sort((a,b)=>b[1]-a[1]);
+
+  // أحدث 8 صور thumbnails
+  const thumbs=d.filter(r=>r.thumbnail).slice(0,8);
+
+  // ── CSS الـ print ──
+  const css=`
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1a1a1a;direction:rtl;font-size:13px;}
+    .page{width:210mm;min-height:297mm;margin:0 auto;padding:16mm 14mm;page-break-after:always;}
+    .page:last-child{page-break-after:avoid;}
+    h1{font-size:22px;color:#0078d4;font-weight:800;margin-bottom:4px;}
+    h2{font-size:15px;color:#0078d4;font-weight:700;margin:18px 0 10px;border-bottom:2px solid #0078d4;padding-bottom:5px;}
+    .meta{font-size:11px;color:#666;margin-bottom:18px;}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:4px;}
+    .stat-card{background:#f0f7ff;border:1px solid #cce4ff;border-radius:8px;padding:10px;text-align:center;}
+    .stat-num{font-size:26px;font-weight:800;color:#0078d4;}
+    .stat-lbl{font-size:10px;color:#555;margin-top:2px;}
+    .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+    .bar-lbl{width:90px;font-size:11px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .bar-track{flex:1;background:#eee;border-radius:4px;height:14px;}
+    .bar-fill{height:14px;border-radius:4px;background:#0078d4;}
+    .bar-val{width:30px;font-size:11px;font-weight:700;color:#333;text-align:left;}
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
+    th{background:#0078d4;color:#fff;padding:6px 8px;text-align:right;font-weight:600;}
+    td{padding:5px 8px;border-bottom:1px solid #eee;text-align:right;}
+    tr:nth-child(even) td{background:#f8fbff;}
+    .photos-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;}
+    .photos-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;border:1px solid #ddd;}
+    .footer{margin-top:14px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:8px;}
+    @media print{
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      @page{size:A4;margin:0;}
+    }`;
+
+  // ── صفحة 1: الإحصائيات ──
+  const typeChart=typeRows.map(([t,c])=>`
+    <div class="bar-row">
+      <div class="bar-lbl">${t}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(c/maxT*100).toFixed(0)}%;background:${tc(t)};"></div></div>
+      <div class="bar-val">${c}</div>
+    </div>`).join('');
+
+  const srvTable='<table><thead><tr><th>#</th><th>المساح</th><th>عدد السجلات</th><th>النسبة</th></tr></thead><tbody>'
+    +srvRows.map(([n,c],i)=>`<tr><td>${i+1}</td><td>${n}</td><td><b>${c}</b></td><td>${(c/total*100).toFixed(1)}%</td></tr>`).join('')
+    +'</tbody></table>';
+
+  const thumbsHtml=thumbs.length?`<h2>📷 عينة من الصور</h2><div class="photos-grid">${
+    thumbs.map(r=>`<img src="data:image/jpeg;base64,${r.thumbnail}" title="${r.building_type||''} — ${r.surveyor_name||''}"/>`).join('')
+  }</div>`:'';
+
+  // ── صفحة 2: جدول السجلات (100 سجل أول) ──
+  const tableRows=d.slice(0,100).map((r,i)=>`<tr>
+    <td>${i+1}</td>
+    <td>${(r.captured_at||'').slice(0,16).replace('T',' ')}</td>
+    <td>${r.surveyor_name||'—'}</td>
+    <td style="color:${tc(r.building_type)};font-weight:600">${r.building_type||'غير محدد'}</td>
+    <td style="text-align:center">${r.floors??'—'}</td>
+    <td>${r.road_name||'—'}</td>
+    <td style="font-size:10px">${r.latitude?r.latitude.toFixed(5):'—'}, ${r.longitude?r.longitude.toFixed(5):'—'}</td>
+  </tr>`).join('');
+
+  const reportDate=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
+  const filterLabel=activeSrv==='all'?'كل المساحين':activeSrv;
+
+  const body=`
+  <div class="page">
+    <h1>📋 تقرير المسح الميداني</h1>
+    <div class="meta">تاريخ التقرير: ${reportDate} &nbsp;|&nbsp; الفلتر: ${filterLabel} &nbsp;|&nbsp; إجمالي السجلات المعروضة: ${total}</div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">إجمالي السجلات</div></div>
+      <div class="stat-card"><div class="stat-num">${srvRows.length}</div><div class="stat-lbl">عدد المساحين</div></div>
+      <div class="stat-card"><div class="stat-num">${days}</div><div class="stat-lbl">أيام العمل</div></div>
+      <div class="stat-card"><div class="stat-num">${withPh}</div><div class="stat-lbl">سجلات بصور</div></div>
+    </div>
+
+    <h2>🏢 توزيع أنواع المباني</h2>
+    ${typeChart}
+
+    <h2>👷 إنتاجية المساحين</h2>
+    ${srvTable}
+
+    ${thumbsHtml}
+
+    <div class="footer">GIS Survey Dashboard &mdash; ${reportDate}</div>
+  </div>
+
+  <div class="page">
+    <h1>📋 تقرير المسح الميداني</h1>
+    <div class="meta">جدول السجلات ${d.length>100?'(أول 100 سجل)':''} &nbsp;|&nbsp; ${reportDate}</div>
+    <table>
+      <thead><tr><th>#</th><th>التاريخ</th><th>المساح</th><th>النوع</th><th>أدوار</th><th>المحور</th><th>الإحداثيات</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div class="footer">GIS Survey Dashboard &mdash; صفحة 2</div>
+  </div>`;
+
+  const win=window.open('','_blank','width=900,height=700');
+  if(!win){alert('من فضلك اسمح بالنوافذ المنبثقة');return;}
+  win.document.write('<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير المسح</title><style>'+css+'<\/style><\/head><body>'+body+'<script>window.onload=function(){window.print();}<\/script><\/body><\/html>');
+  win.document.close();
 }
 
 // ── Print Card ────────────────────────────────────
