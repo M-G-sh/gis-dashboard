@@ -444,6 +444,18 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 @keyframes slideInLeft { from{transform:translateX(-120%);opacity:0} to{transform:translateX(0);opacity:1} }
 @keyframes popIn { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
+/* Gallery */
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:16px;}
+.gal-card{background:var(--panel2);border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .2s,transform .2s;}
+.gal-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.gal-img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--panel);}
+.gal-img-ph{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--panel);color:var(--text3);}
+.gal-info{padding:7px 9px;}
+.gal-type{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gal-meta{font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gal-filter{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+.gal-filter select,.gal-filter input{padding:5px 8px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Cairo,sans-serif;font-size:12px;}
+.gal-count{font-size:12px;color:var(--text3);margin-right:auto;}
 .blink { animation:blink 1.2s infinite; }
 .gis-lrow { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;
   cursor:pointer;font-size:13px;font-family:'Cairo',sans-serif;gap:12px;
@@ -492,6 +504,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <button class="hbtn" onclick="openDl()">📥 تحميل</button>
     <button class="hbtn" id="track-btn" onclick="toggleTrack()">🛤️ المسار</button>
     <button class="hbtn" id="photos-map-btn" onclick="togglePhotoMap()">🖼️ الصور</button>
+    <button class="hbtn" onclick="openGallery()" title="معرض الصور">📷 معرض</button>
     <button class="hbtn" id="sel-mode-btn" onclick="toggleSelectMode()">🔲 تحديد</button>
     <button class="hbtn" id="poly-mode-btn" onclick="togglePolySelect()">⬡ تحديد منطقة</button>
     <button class="hbtn" id="cluster-btn" onclick="toggleClusters()" title="تجميع النقاط">📍 تجميع</button>
@@ -2670,6 +2683,78 @@ async function dlSelected(){
   }
 }
 
+// ── Photo Gallery ────────────────────────────────
+function openGallery(){
+  // ملء فلتر المساحين
+  const srvSel=document.getElementById('gal-srv');
+  const names=[...new Set(allData.map(r=>r.surveyor_name||'غير محدد'))].sort();
+  srvSel.innerHTML='<option value="">👥 كل المساحين</option>'
+    +names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  document.getElementById('gal-ov').style.display='flex';
+  renderGallery();
+}
+function closeGallery(){
+  document.getElementById('gal-ov').style.display='none';
+}
+
+function renderGallery(){
+  const srv   = document.getElementById('gal-srv').value;
+  const type  = document.getElementById('gal-type').value;
+  const sort  = document.getElementById('gal-sort').value;
+  const q     = document.getElementById('gal-search').value.toLowerCase();
+  const onlyPh= document.getElementById('gal-only-photos').checked;
+
+  let recs=[...allData];
+  if(srv)    recs=recs.filter(r=>(r.surveyor_name||'غير محدد')===srv);
+  if(type)   recs=recs.filter(r=>(r.building_type||'غير محدد')===type);
+  if(onlyPh) recs=recs.filter(r=>r.thumbnail);
+  if(q)      recs=recs.filter(r=>
+    (r.building_type||'').toLowerCase().includes(q)||
+    (r.surveyor_name||'').toLowerCase().includes(q)||
+    (r.road_name||'').toLowerCase().includes(q)||
+    (r.notes||'').toLowerCase().includes(q));
+
+  if(sort==='date-desc') recs.sort((a,b)=>(b.captured_at||'').localeCompare(a.captured_at||''));
+  else if(sort==='date-asc') recs.sort((a,b)=>(a.captured_at||'').localeCompare(b.captured_at||''));
+  else if(sort==='type') recs.sort((a,b)=>(a.building_type||'').localeCompare(b.building_type||''));
+  else if(sort==='srv')  recs.sort((a,b)=>(a.surveyor_name||'').localeCompare(b.surveyor_name||''));
+
+  document.getElementById('gal-count').textContent=recs.length+' سجل';
+
+  // عرض أول 200 عشان ما يتقلش
+  const show=recs.slice(0,200);
+  const body=document.getElementById('gal-body');
+
+  if(!show.length){
+    body.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:60px 0;font-size:15px;">لا توجد نتائج</div>';
+    return;
+  }
+
+  body.innerHTML=show.map(r=>{
+    const color=tc(r.building_type);
+    const date=(r.captured_at||'').slice(0,10);
+    const img=r.thumbnail
+      ?`<img class="gal-img" src="data:image/jpeg;base64,${r.thumbnail}" loading="lazy"/>`
+      :`<div class="gal-img-ph">📷</div>`;
+    return `<div class="gal-card" onclick="closeGallery();openLbById('${r.id}')">
+      ${img}
+      <div class="gal-info">
+        <div class="gal-type" style="color:${color}">${r.building_type||'غير محدد'}</div>
+        <div class="gal-meta">👷 ${r.surveyor_name||'—'}</div>
+        <div class="gal-meta">📅 ${date}</div>
+        ${r.road_name?`<div class="gal-meta">🛣️ ${r.road_name}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // لو فيه أكثر من 200
+  if(recs.length>200){
+    body.innerHTML+=`<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:16px;font-size:12px;">
+      يُعرض أول 200 من ${recs.length} — استخدم الفلاتر لتضييق النتائج
+    </div>`;
+  }
+}
+
 // ── Duplicate Detection ───────────────────────────
 function _haversine(lat1,lon1,lat2,lon2){
   const R=6371000,toR=Math.PI/180;
@@ -3103,6 +3188,36 @@ async function loadUsage(){
   }
 }
 </script>
+
+<!-- Photo Gallery Modal -->
+<div id="gal-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9998;flex-direction:column;">
+  <div style="background:var(--panel);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <span style="font-size:16px;font-weight:700;color:var(--accent);">📷 معرض الصور</span>
+    <div class="gal-filter" style="padding:0;border:none;flex:1;">
+      <select id="gal-srv" onchange="renderGallery()">
+        <option value="">👥 كل المساحين</option>
+      </select>
+      <select id="gal-type" onchange="renderGallery()">
+        <option value="">🏢 كل الأنواع</option>
+        <option>سكني تجاري</option><option>تجاري</option><option>سكني</option>
+        <option>صناعي</option><option>صحي</option><option>تعليمي</option><option>ديني</option><option>أخرى</option><option>غير محدد</option>
+      </select>
+      <select id="gal-sort" onchange="renderGallery()">
+        <option value="date-desc">🕐 الأحدث أولاً</option>
+        <option value="date-asc">🕐 الأقدم أولاً</option>
+        <option value="type">🏢 حسب النوع</option>
+        <option value="srv">👷 حسب المساح</option>
+      </select>
+      <input id="gal-search" type="text" placeholder="🔎 بحث..." oninput="renderGallery()" style="width:130px;"/>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;">
+        <input type="checkbox" id="gal-only-photos" onchange="renderGallery()"/> صور فقط
+      </label>
+      <span id="gal-count" class="gal-count"></span>
+    </div>
+    <button onclick="closeGallery()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;flex-shrink:0;">✕</button>
+  </div>
+  <div id="gal-body" style="flex:1;overflow-y:auto;" class="gal-grid"></div>
+</div>
 
 <!-- Duplicate Detection Modal -->
 <div id="dup-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;">
