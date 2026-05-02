@@ -1787,25 +1787,87 @@ document.addEventListener('click',e=>{
 
 function _escXml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-function exportKML(){
+async function exportKML(){
   const recs=filtered.filter(r=>r.latitude&&r.longitude);
-  const pm=recs.map(r=>'<Placemark>'
-    +'<name>'+_escXml(r.building_type||'غير محدد')+'</name>'
-    +'<description>'+_escXml((r.surveyor_name||'')+(r.floors?' | '+r.floors+' أدوار':''))+'</description>'
-    +'<Point><coordinates>'+r.longitude+','+r.latitude+',0</coordinates></Point>'
-    +'</Placemark>').join('\n');
+  if(!recs.length){alert('لا توجد بيانات للتصدير');return;}
+
+  // جلب photo_url على دفعات (الـ URL ممكن يكون طويل لو كل الـ IDs دفعة واحدة)
+  const photoMap={};
+  const BATCH=200;
+  for(let i=0;i<recs.length;i+=BATCH){
+    const ids=recs.slice(i,i+BATCH).map(r=>r.id).join(',');
+    try{
+      const rows=await sbGet('/rest/v1/surveys?select=id,photo_url&id=in.('+ids+')');
+      (rows||[]).forEach(r=>{if(r.photo_url)photoMap[r.id]=r.photo_url;});
+    }catch(_){}
+  }
+
+  const pm=recs.map(r=>{
+    const photoUrl=photoMap[r.id]||'';
+    const date=(r.captured_at||'').slice(0,16).replace('T',' ');
+
+    // وصف HTML يظهر في Google Earth عند الضغط على النقطة
+    const descHtml=''
+      +(photoUrl?'<img src="'+photoUrl+'" width="400" style="border-radius:8px;margin-bottom:8px"/><br/>':'')
+      +'<table cellpadding="4" style="font-family:Arial;font-size:13px;">'
+      +'<tr><td><b>نوع المبنى</b></td><td>'+(r.building_type||'غير محدد')+'</td></tr>'
+      +'<tr><td><b>عدد الأدوار</b></td><td>'+(r.floors!=null?r.floors:'—')+'</td></tr>'
+      +'<tr><td><b>المساح</b></td><td>'+(r.surveyor_name||'—')+'</td></tr>'
+      +'<tr><td><b>المحور</b></td><td>'+(r.road_name||'—')+'</td></tr>'
+      +'<tr><td><b>التاريخ</b></td><td>'+date+'</td></tr>'
+      +(r.notes?'<tr><td><b>ملاحظات</b></td><td>'+r.notes+'</td></tr>':'')
+      +'<tr><td><b>الإحداثيات</b></td><td>'+r.latitude.toFixed(6)+', '+r.longitude.toFixed(6)+'</td></tr>'
+      +'</table>';
+
+    return '<Placemark>'
+      +'<name>'+_escXml((r.building_type||'غير محدد')+' — #'+r.id)+'</name>'
+      +'<description><![CDATA['+descHtml+']]><\/description>'
+      +'<ExtendedData>'
+      +'<Data name="id"><value>'+r.id+'</value><\/Data>'
+      +'<Data name="نوع المبنى"><value>'+_escXml(r.building_type||'غير محدد')+'</value><\/Data>'
+      +'<Data name="عدد الأدوار"><value>'+_escXml(r.floors!=null?String(r.floors):'')+'</value><\/Data>'
+      +'<Data name="المساح"><value>'+_escXml(r.surveyor_name||'')+'</value><\/Data>'
+      +'<Data name="المحور"><value>'+_escXml(r.road_name||'')+'</value><\/Data>'
+      +'<Data name="التاريخ"><value>'+_escXml(date)+'</value><\/Data>'
+      +'<Data name="ملاحظات"><value>'+_escXml(r.notes||'')+'</value><\/Data>'
+      +'<Data name="رابط الصورة"><value>'+_escXml(photoUrl)+'</value><\/Data>'
+      +'<\/ExtendedData>'
+      +'<Point><coordinates>'+r.longitude+','+r.latitude+',0<\/coordinates><\/Point>'
+      +'<\/Placemark>';
+  }).join('\n');
+
   const kml='<?xml version="1.0" encoding="UTF-8"?>\n'
     +'<kml xmlns="http://www.opengis.net/kml/2.2"><Document>\n'
-    +'<name>GIS Survey — '+new Date().toLocaleDateString('ar')+'</name>\n'
-    +pm+'\n</Document></kml>';
+    +'<name>GIS Survey — '+_escXml(new Date().toLocaleDateString('ar-EG'))+'</name>\n'
+    +pm+'\n<\/Document><\/kml>';
   saveAs(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}),'survey_'+new Date().toISOString().slice(0,10)+'.kml');
 }
 
-function exportGeoJSON(){
-  const features=filtered.filter(r=>r.latitude&&r.longitude).map(r=>({
+async function exportGeoJSON(){
+  const recs=filtered.filter(r=>r.latitude&&r.longitude);
+  if(!recs.length){alert('لا توجد بيانات للتصدير');return;}
+  const photoMap={};
+  const BATCH=200;
+  for(let i=0;i<recs.length;i+=BATCH){
+    const ids=recs.slice(i,i+BATCH).map(r=>r.id).join(',');
+    try{
+      const rows=await sbGet('/rest/v1/surveys?select=id,photo_url&id=in.('+ids+')');
+      (rows||[]).forEach(r=>{if(r.photo_url)photoMap[r.id]=r.photo_url;});
+    }catch(_){}
+  }
+  const features=recs.map(r=>({
     type:'Feature',
     geometry:{type:'Point',coordinates:[r.longitude,r.latitude]},
-    properties:{id:r.id,building_type:r.building_type,floors:r.floors,surveyor_name:r.surveyor_name,road_name:r.road_name,notes:r.notes,captured_at:r.captured_at}
+    properties:{
+      id:r.id,
+      building_type:r.building_type||null,
+      floors:r.floors??null,
+      surveyor_name:r.surveyor_name||null,
+      road_name:r.road_name||null,
+      notes:r.notes||null,
+      captured_at:r.captured_at||null,
+      photo_url:photoMap[r.id]||null
+    }
   }));
   saveAs(new Blob([JSON.stringify({type:'FeatureCollection',features},null,2)],{type:'application/json'}),`survey_${new Date().toISOString().slice(0,10)}.geojson`);
 }
