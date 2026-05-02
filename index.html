@@ -2,8 +2,11 @@
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GIS Survey Dashboard</title>
+<title>GIS Survey Dashboard v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -16,6 +19,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://sql.js.org/dist/sql-wasm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://unpkg.com/leaflet-editable/src/Leaflet.Editable.js"></script>
 <style>
 :root {
@@ -307,7 +315,9 @@ header {
 
 /* ═══ LIGHTBOX ═══ */
 #lightbox { flex-direction:column; gap:10px; }
-#lightbox img { max-width:92vw; max-height:85vh; border-radius:6px; box-shadow:0 8px 40px rgba(0,0,0,.7); }
+#lightbox img { max-width:92vw; max-height:85vh; border-radius:6px; box-shadow:0 8px 40px rgba(0,0,0,.7); image-rendering:auto; }
+#lightbox img.is-thumb { max-width:320px; max-height:320px; image-rendering:pixelated; }
+#lb-thumb-note { display:none; font-size:12px; color:#ff9800; background:rgba(0,0,0,.6); padding:4px 12px; border-radius:4px; }
 #lb-dl {
   padding:7px 22px; background:var(--accent); color:#000;
   border:none; border-radius:4px; cursor:pointer; font-size:12px;
@@ -476,11 +486,15 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       <span id="last-visit" style="font-size:11px;color:var(--text2);">—</span>
     </div>
     <button class="hbtn" onclick="openAttr()">📋 الجدول</button>
+    <button class="hbtn" onclick="openChartsModal()">📊 الإحصائيات</button>
     <button class="hbtn" onclick="openDl()">📥 تحميل</button>
     <button class="hbtn" id="track-btn" onclick="toggleTrack()">🛤️ المسار</button>
     <button class="hbtn" id="photos-map-btn" onclick="togglePhotoMap()">🖼️ الصور</button>
     <button class="hbtn" id="sel-mode-btn" onclick="toggleSelectMode()">🔲 تحديد</button>
     <button class="hbtn" id="poly-mode-btn" onclick="togglePolySelect()">⬡ تحديد منطقة</button>
+    <button class="hbtn" id="cluster-btn" onclick="toggleClusters()" title="تجميع النقاط">📍 تجميع</button>
+    <button class="hbtn" id="heat-btn" onclick="toggleHeat()" title="خريطة حرارية">🔥 حرارية</button>
+    <button class="hbtn" id="export-btn" onclick="toggleExportMenu(event)" title="تصدير البيانات">📤 تصدير</button>
     <button class="hbtn admin-only" id="gis-edit-btn" onclick="toggleGisEdit()">✏️ تعديل الطبقات</button>
     <button class="hbtn admin-only" id="gis-save-btn" onclick="saveGisEdits()" style="display:none;background:rgba(76,175,80,0.2);border-color:#4CAF50;color:#4CAF50;">💾 حفظ التعديلات</button>
     <button class="hbtn act" onclick="loadData()">🔄</button>
@@ -611,6 +625,11 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
   </div>
 </div>
 
+<!-- ═══ EXPORT DROPDOWN ═══ -->
+<div id="export-dropdown" style="display:none;position:fixed;
+     background:var(--panel);border:1px solid var(--border);border-radius:10px;
+     min-width:180px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.6);overflow:hidden"></div>
+
 <!-- ═══ BODY ═══ -->
 <div class="body-wrap">
 
@@ -716,6 +735,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
               <th>الإحداثيات</th>
               <th>صورة</th>
               <th>مقارنة</th>
+              <th>طباعة</th>
               <th class="admin-only">تعديل</th>
               <th>حذف</th>
             </tr>
@@ -741,9 +761,48 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
   <button onclick="clearSelection()">✕ إلغاء</button>
 </div>
 
+<!-- ═══ CHARTS MODAL ═══ -->
+<div id="charts-ov" class="ov" onclick="if(event.target===this)closeCharts()" style="display:none;align-items:flex-start;padding:20px;overflow-y:auto;">
+  <div class="mbox" onclick="event.stopPropagation()" style="width:900px;max-width:98vw;margin:auto;">
+    <div class="mhdr">
+      <span>📊 الإحصائيات والتقارير</span>
+      <button class="mcls" onclick="closeCharts()">✕</button>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:20px;">
+      <!-- Chart 1: Daily -->
+      <div style="background:var(--panel2);border-radius:10px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">📅 المسح اليومي (آخر 30 يوم)</div>
+        <canvas id="chart-daily" height="120"></canvas>
+      </div>
+      <!-- Chart 2: Building Types -->
+      <div style="background:var(--panel2);border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">🏢 توزيع أنواع المباني</div>
+          <canvas id="chart-types" height="200"></canvas>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">🏗️ توزيع الأدوار</div>
+          <canvas id="chart-floors" height="200"></canvas>
+        </div>
+      </div>
+      <!-- Chart 3: Surveyors -->
+      <div style="background:var(--panel2);border-radius:10px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">👷 إنتاج المساحين</div>
+        <canvas id="chart-surveyors" height="120"></canvas>
+      </div>
+      <!-- Chart 4: Weekly trend -->
+      <div style="background:var(--panel2);border-radius:10px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">📈 الاتجاه الأسبوعي (آخر 12 أسبوع)</div>
+        <canvas id="chart-weekly" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ LIGHTBOX ═══ -->
 <div id="lightbox" class="ov" onclick="if(event.target===this)closeLb()">
   <img id="lb-img" src="" alt=""/>
+  <div id="lb-thumb-note">⚠️ معاينة مصغرة — الصورة الأصلية غير متاحة</div>
   <button id="lb-dl" onclick="dlPhoto()">📥 تحميل الصورة</button>
 </div>
 
@@ -786,14 +845,14 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       </div>
 
       <div class="tog-row" onclick="togPhotos()">
-        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation()"/>
+        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation();dlPh=this.checked;"/>
         <div>
           <div class="tog-tl">📷 تضمين الصور (ZIP)</div>
           <div class="tog-td">ملف مضغوط يحتوي البيانات + الصور</div>
         </div>
       </div>
 
-      <button class="dl-btn" id="dl-btn" onclick="startDl()">📥 تحميل الآن</button>
+      <button class="dl-btn" id="dl-btn" onclick="dlBtnClick()">📥 تحميل الآن</button>
       <div id="dl-prog-wrap">
         <div class="prog-tr"><div class="prog-fl" id="dl-prog-fl"></div></div>
         <div id="dl-prog-txt"></div>
@@ -1034,6 +1093,10 @@ let showPhotoMap = false;
 let selectMode = false;
 let selectedIds = new Set();
 let polyMode = false;
+let clusterMode = false;
+let _clusterGroup = null;
+let heatMode = false;
+let _heatLayer = null;
 let polyPts = [];
 let polyLayer = L.layerGroup().addTo(map);
 let polyLine = null;
@@ -1211,8 +1274,10 @@ function getDateColor(dateStr) {
 // ── Map ───────────────────────────────────────────
 function renderMap() {
   mLayer.clearLayers();
+  if(_clusterGroup){map.removeLayer(_clusterGroup);_clusterGroup=null;}
   markerById={};
   const bounds=[];
+  const _pendingMarkers=[];
   filtered.forEach((r,i)=>{
     if(!r.latitude||!r.longitude) return;
     const panoBadge = r.is_panorama ? `<div style="background:#1565C0;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:4px;display:inline-block;">🌐 360°</div>` : '';
@@ -1250,12 +1315,20 @@ function renderMap() {
           marker.getElement()?.classList.add('marker-selected');
         }
         updateSelBar();
-      })
-      .addTo(mLayer);
+      });
+    _pendingMarkers.push(marker);
     markerById[r.id]=marker;
     if(isSelected) setTimeout(()=>marker.getElement()?.classList.add('marker-selected'),50);
     bounds.push([r.latitude,r.longitude]);
   });
+  if(clusterMode){
+    _clusterGroup=L.markerClusterGroup({chunkedLoading:true,maxClusterRadius:60});
+    _pendingMarkers.forEach(m=>_clusterGroup.addLayer(m));
+    map.addLayer(_clusterGroup);
+  } else {
+    _pendingMarkers.forEach(m=>m.addTo(mLayer));
+  }
+  if(heatMode) _buildHeat();
   if(bounds.length && !map._userMoved) map.fitBounds(bounds,{padding:[30,30]});
 }
 
@@ -1574,6 +1647,204 @@ function renderList() {
 }
 function focusRec(i){const r=filtered[i];if(r?.latitude)map.setView([r.latitude,r.longitude],18);}
 
+// ── Charts Modal ──────────────────────────────────
+let _chartInstances={};
+function openChartsModal(){
+  const ov=document.getElementById('charts-ov');
+  ov.style.display='flex';
+  setTimeout(()=>buildAllCharts(),100);
+}
+function closeCharts(){
+  document.getElementById('charts-ov').style.display='none';
+}
+function destroyChart(id){
+  if(_chartInstances[id]){_chartInstances[id].destroy();delete _chartInstances[id];}
+}
+function buildAllCharts(){
+  const isDark=document.documentElement.getAttribute('data-theme')!=='light';
+  const textColor=isDark?'#b0b0b0':'#555';
+  const gridColor=isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)';
+  const accent='#00c5ff';
+
+  // ── Chart 1: Daily (last 30 days) ──
+  destroyChart('daily');
+  const days={};
+  const now=new Date();
+  for(let i=29;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);days[d.toISOString().slice(0,10)]=0;}
+  filtered.forEach(r=>{const d=(r.captured_at||'').slice(0,10);if(days[d]!==undefined)days[d]++;});
+  const dailyLabels=Object.keys(days).map(d=>d.slice(5));
+  const dailyData=Object.values(days);
+  _chartInstances['daily']=new Chart(document.getElementById('chart-daily'),{
+    type:'line',
+    data:{labels:dailyLabels,datasets:[{label:'سجل',data:dailyData,borderColor:accent,backgroundColor:'rgba(0,197,255,0.1)',fill:true,tension:0.4,pointRadius:3}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor,maxTicksLimit:10},grid:{color:gridColor}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
+  });
+
+  // ── Chart 2: Building Types (Doughnut) ──
+  destroyChart('types');
+  const typeCnt={};
+  filtered.forEach(r=>{const t=r.building_type||'غير محدد';typeCnt[t]=(typeCnt[t]||0)+1;});
+  const typeEntries=Object.entries(typeCnt).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const typeColors=['#00c5ff','#71c96e','#ff9800','#e91e63','#9c27b0','#3f51b5','#009688','#ff5722'];
+  _chartInstances['types']=new Chart(document.getElementById('chart-types'),{
+    type:'doughnut',
+    data:{labels:typeEntries.map(e=>e[0]),datasets:[{data:typeEntries.map(e=>e[1]),backgroundColor:typeColors,borderWidth:2,borderColor:'rgba(0,0,0,0.3)'}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:textColor,font:{size:11},padding:8}}}}
+  });
+
+  // ── Chart 3: Floors Distribution ──
+  destroyChart('floors');
+  const floorCnt={};
+  filtered.forEach(r=>{if(r.floors){const f=r.floors+'د';floorCnt[f]=(floorCnt[f]||0)+1;}});
+  const floorEntries=Object.entries(floorCnt).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
+  _chartInstances['floors']=new Chart(document.getElementById('chart-floors'),{
+    type:'bar',
+    data:{labels:floorEntries.map(e=>e[0]),datasets:[{label:'عدد',data:floorEntries.map(e=>e[1]),backgroundColor:'rgba(113,201,110,0.7)',borderColor:'#71c96e',borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor},grid:{display:false}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
+  });
+
+  // ── Chart 4: Surveyors ──
+  destroyChart('surveyors');
+  const srvCnt={};
+  filtered.forEach(r=>{const s=r.surveyor_name||'غير محدد';srvCnt[s]=(srvCnt[s]||0)+1;});
+  const srvEntries=Object.entries(srvCnt).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  _chartInstances['surveyors']=new Chart(document.getElementById('chart-surveyors'),{
+    type:'bar',
+    data:{labels:srvEntries.map(e=>e[0]),datasets:[{label:'سجل',data:srvEntries.map(e=>e[1]),backgroundColor:'rgba(0,197,255,0.7)',borderColor:accent,borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor,maxRotation:30},grid:{display:false}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
+  });
+
+  // ── Chart 5: Weekly ──
+  destroyChart('weekly');
+  const weeks={};
+  for(let i=11;i>=0;i--){
+    const d=new Date(now);d.setDate(d.getDate()-i*7);
+    const wk=d.toISOString().slice(0,10);weeks[wk]=0;
+  }
+  const wkKeys=Object.keys(weeks);
+  filtered.forEach(r=>{
+    const rd=new Date(r.captured_at||'');
+    for(let i=wkKeys.length-1;i>=0;i--){
+      const wkStart=new Date(wkKeys[i]);
+      const wkEnd=new Date(wkStart);wkEnd.setDate(wkEnd.getDate()+6);
+      if(rd>=wkStart&&rd<=wkEnd){weeks[wkKeys[i]]++;break;}
+    }
+  });
+  _chartInstances['weekly']=new Chart(document.getElementById('chart-weekly'),{
+    type:'bar',
+    data:{labels:wkKeys.map(d=>d.slice(5)),datasets:[{label:'سجل',data:Object.values(weeks),backgroundColor:'rgba(255,152,0,0.7)',borderColor:'#ff9800',borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor},grid:{display:false}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
+  });
+}
+
+// ── Clusters ──────────────────────────────────────
+function toggleClusters(){
+  clusterMode=!clusterMode;
+  document.getElementById('cluster-btn').classList.toggle('act',clusterMode);
+  renderMap();
+}
+
+// ── Heatmap ───────────────────────────────────────
+function toggleHeat(){
+  heatMode=!heatMode;
+  document.getElementById('heat-btn').classList.toggle('act',heatMode);
+  if(!heatMode){if(_heatLayer){map.removeLayer(_heatLayer);_heatLayer=null;}}
+  else{_buildHeat();}
+}
+function _buildHeat(){
+  if(_heatLayer){map.removeLayer(_heatLayer);_heatLayer=null;}
+  const pts=filtered.filter(r=>r.latitude&&r.longitude).map(r=>[r.latitude,r.longitude,0.5]);
+  if(!pts.length) return;
+  _heatLayer=L.heatLayer(pts,{radius:28,blur:18,maxZoom:17,
+    gradient:{0.3:'#0078d4',0.55:'#00c5ff',0.75:'#71c96e',0.9:'#ff9800',1:'#f44336'}
+  }).addTo(map);
+}
+
+// ── Export ────────────────────────────────────────
+function toggleExportMenu(e){
+  e.stopPropagation();
+  const d=document.getElementById('export-dropdown');
+  if(d.style.display!=='none'){d.style.display='none';return;}
+  const btn=document.getElementById('export-btn');
+  const rect=btn.getBoundingClientRect();
+  d.style.right=(window.innerWidth-rect.right)+'px';
+  d.style.left='auto';
+  d.style.top=(rect.bottom+4)+'px';
+  d.innerHTML=[
+    {icon:'📄',label:'تصدير KML',sub:'Google Earth / Maps',fn:'exportKML()'},
+    {icon:'🗺️',label:'تصدير GeoJSON',sub:'QGIS / ArcGIS',fn:'exportGeoJSON()'},
+    {icon:'📊',label:'تصدير CSV',sub:'Excel / جداول',fn:'downloadCSV()'},
+  ].map(x=>`<div class="gis-lrow" onclick="${x.fn};document.getElementById('export-dropdown').style.display='none'">
+    <span>${x.icon} ${x.label}</span>
+    <span style="font-size:10px;color:var(--text3);">${x.sub}</span>
+  </div>`).join('');
+  d.style.display='block';
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#export-btn')&&!e.target.closest('#export-dropdown'))
+    document.getElementById('export-dropdown').style.display='none';
+});
+
+function _escXml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function exportKML(){
+  const recs=filtered.filter(r=>r.latitude&&r.longitude);
+  const pm=recs.map(r=>'<Placemark>'
+    +'<name>'+_escXml(r.building_type||'غير محدد')+'</name>'
+    +'<description>'+_escXml((r.surveyor_name||'')+(r.floors?' | '+r.floors+' أدوار':''))+'</description>'
+    +'<Point><coordinates>'+r.longitude+','+r.latitude+',0</coordinates></Point>'
+    +'</Placemark>').join('\n');
+  const kml='<?xml version="1.0" encoding="UTF-8"?>\n'
+    +'<kml xmlns="http://www.opengis.net/kml/2.2"><Document>\n'
+    +'<name>GIS Survey — '+new Date().toLocaleDateString('ar')+'</name>\n'
+    +pm+'\n</Document></kml>';
+  saveAs(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}),'survey_'+new Date().toISOString().slice(0,10)+'.kml');
+}
+
+function exportGeoJSON(){
+  const features=filtered.filter(r=>r.latitude&&r.longitude).map(r=>({
+    type:'Feature',
+    geometry:{type:'Point',coordinates:[r.longitude,r.latitude]},
+    properties:{id:r.id,building_type:r.building_type,floors:r.floors,surveyor_name:r.surveyor_name,road_name:r.road_name,notes:r.notes,captured_at:r.captured_at}
+  }));
+  saveAs(new Blob([JSON.stringify({type:'FeatureCollection',features},null,2)],{type:'application/json'}),`survey_${new Date().toISOString().slice(0,10)}.geojson`);
+}
+
+// ── Print Card ────────────────────────────────────
+function printCard(id){
+  const r=allData.find(x=>x.id===id); if(!r) return;
+  const win=window.open('','_blank','width=680,height=860');
+  if(!win){alert('من فضلك اسمح بالنوافذ المنبثقة');return;}
+  const thumb=r.thumbnail?'<img src="data:image/jpeg;base64,'+r.thumbnail+'" style="width:200px;height:150px;object-fit:cover;border-radius:8px;margin-bottom:14px;display:block;"/>'  :'';
+  const noteRow=r.notes?'<div class="row"><div class="lbl">ملاحظات</div><div class="val">'+r.notes+'</div></div>':'';
+  const css='*{margin:0;padding:0;box-sizing:border-box;}'
+    +'body{font-family:Arial,sans-serif;padding:28px;background:#fff;color:#1a1a1a;direction:rtl;}'
+    +'.card{border:2px solid #0078d4;border-radius:12px;padding:22px;max-width:600px;margin:auto;}'
+    +'.hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;border-bottom:2px solid #0078d4;padding-bottom:10px;}'
+    +'.hdr h1{font-size:18px;color:#0078d4;font-weight:700;}'
+    +'.row{display:flex;padding:8px 0;border-bottom:1px solid #eee;}'
+    +'.lbl{width:38%;font-weight:700;color:#0078d4;font-size:13px;}'
+    +'.val{flex:1;font-size:13px;color:#222;}'
+    +'.ft{margin-top:14px;text-align:center;font-size:10px;color:#aaa;}';
+  const body='<div class="card">'
+    +'<div class="hdr"><div style="font-size:32px;">&#127968;</div>'
+    +'<div><h1>&#1576;&#1591;&#1575;&#1602;&#1577; &#1605;&#1576;&#1606;&#1609; &mdash; #'+r.id+'</h1>'
+    +'<div style="font-size:11px;color:#888;">GIS Survey &bull; '+new Date().toLocaleDateString('ar-EG')+'</div></div></div>'
+    +thumb
+    +'<div class="row"><div class="lbl">&#1606;&#1608;&#1593; &#1575;&#1604;&#1605;&#1576;&#1606;&#1609;</div><div class="val">'+(r.building_type||'&mdash;')+'</div></div>'
+    +'<div class="row"><div class="lbl">&#1593;&#1583;&#1583; &#1575;&#1604;&#1571;&#1583;&#1608;&#1575;&#1585;</div><div class="val">'+(r.floors!=null?r.floors:'&mdash;')+'</div></div>'
+    +'<div class="row"><div class="lbl">&#1575;&#1604;&#1605;&#1587;&#1575;&#1581;</div><div class="val">'+(r.surveyor_name||'&mdash;')+'</div></div>'
+    +'<div class="row"><div class="lbl">&#1575;&#1604;&#1605;&#1581;&#1608;&#1585;</div><div class="val">'+(r.road_name||'&mdash;')+'</div></div>'
+    +'<div class="row"><div class="lbl">&#1575;&#1604;&#1578;&#1575;&#1585;&#1610;&#1582;</div><div class="val">'+((r.captured_at||'').slice(0,16).replace('T',' '))+'</div></div>'
+    +'<div class="row"><div class="lbl">&#1573;&#1581;&#1583;&#1575;&#1579;&#1610;&#1575;&#1578;</div><div class="val">'+(r.latitude?r.latitude.toFixed(6):'&mdash;')+', '+(r.longitude?r.longitude.toFixed(6):'&mdash;')+'</div></div>'
+    +noteRow
+    +'<div class="ft">GIS Survey Dashboard</div></div>'
+    +'<div style="text-align:center;margin-top:18px;">'
+    +'<button onclick="window.print()" style="padding:10px 26px;background:#0078d4;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;">&#128424; &#1591;&#1576;&#1575;&#1593;&#1577;</button></div>';
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'+body+'</body></html>');
+  win.document.close();
+}
+
 // ── Chart ─────────────────────────────────────────
 function renderChart() {
   const cnt={};
@@ -1589,22 +1860,47 @@ function renderChart() {
 }
 
 // ── Lightbox ──────────────────────────────────────
-let lbUrl='';
+let lbUrl='', lbThumb='', lbName='photo.jpg';
 function openLb(u){lbUrl=u;document.getElementById('lb-img').src=u;document.getElementById('lightbox').classList.add('open');}
-function closeLb(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lb-img').src='';}
+function closeLb(){document.getElementById('lightbox').classList.remove('open');document.getElementById('lb-img').src='';lbUrl='';lbThumb='';}
 
 async function openLbById(id){
   const r=allData.find(x=>x.id===id); if(!r) return;
   const thumb=r.thumbnail?`data:image/jpeg;base64,${r.thumbnail}`:'';
-  // جيب الصورة الكاملة
+  lbThumb=thumb;
+  lbName=r.photo_name||(id+'.jpg');
+
+  const lbImg=document.getElementById('lb-img');
+  const lbNote=document.getElementById('lb-thumb-note');
+
+  // اعرض الـ thumbnail فورًا بحجمه الطبيعي
+  if(thumb){
+    lbUrl=thumb;
+    lbImg.src=thumb;
+    lbImg.className='is-thumb';
+    lbNote.style.display='block';
+    document.getElementById('lightbox').classList.add('open');
+  }
+
+  // جرب تحمل الصورة الأصلية في الخلفية
   try{
     const data=await sbGet(`/rest/v1/surveys?select=photo_url,is_panorama&id=eq.${id}`);
     const url=data?.[0]?.photo_url;
     const pano=data?.[0]?.is_panorama;
-    if(url && pano){ openPanorama(url); return; }
-    if(url){ lbUrl=url; document.getElementById('lb-img').src=url; document.getElementById('lightbox').classList.add('open'); return; }
+    if(url && pano){ closeLb(); openPanorama(url); return; }
+    if(url){
+      const testImg=new Image();
+      testImg.onload=()=>{
+        lbUrl=url; lbImg.src=url;
+        lbImg.className=''; // حجم طبيعي كامل
+        lbNote.style.display='none';
+      };
+      testImg.onerror=()=>{ lbUrl=thumb; }; // محذوفة → فضل thumbnail
+      testImg.src=url;
+    }
   }catch(_){}
-  if(thumb){ lbUrl=thumb; document.getElementById('lb-img').src=thumb; document.getElementById('lightbox').classList.add('open'); }
+
+  if(!thumb) document.getElementById('lightbox').classList.add('open');
 }
 
 let pannellumViewer=null;
@@ -1624,7 +1920,46 @@ function closePanorama(){
   document.getElementById('pano-ov').style.display='none';
   if(pannellumViewer){ pannellumViewer.destroy(); pannellumViewer=null; }
 }
-function dlPhoto(){const a=document.createElement('a');a.href=lbUrl;a.download=lbUrl.split('/').pop();a.target='_blank';a.click();}
+async function dlPhoto(){
+  const btn=document.getElementById('lb-dl');
+  btn.disabled=true; btn.textContent='⏳ جاري التحميل...';
+  try{
+    // لو lbUrl هو data URL → حول لـ blob واحفظه
+    if(lbUrl && lbUrl.startsWith('data:')){
+      const res=await fetch(lbUrl);
+      const blob=await res.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=lbName;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    } else if(lbUrl){
+      // حاول تحمل الصورة الأصلية
+      try{
+        const res=await fetch(lbUrl);
+        if(!res.ok) throw new Error('404');
+        const blob=await res.blob();
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=lbName;
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      }catch(_){
+        // الصورة الأصلية محذوفة → حمل الـ thumbnail
+        if(lbThumb){
+          const res=await fetch(lbThumb);
+          const blob=await res.blob();
+          const a=document.createElement('a');
+          a.href=URL.createObjectURL(blob);
+          a.download=lbName;
+          a.click();
+          setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+        }
+      }
+    }
+  }catch(e){ alert('خطأ في التحميل: '+e.message); }
+  btn.disabled=false; btn.textContent='📥 تحميل الصورة';
+}
 
 // ── Attr Panel (bottom) ──────────────────────────
 function openAttr(){
@@ -1667,7 +2002,9 @@ function renderAttr(){
       <td style="font-size:11px">${r.road_name||'—'}</td>
       <td style="font-size:11px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.notes||''}">${r.notes||'—'}</td>
       <td class="num" style="font-size:10px">${r.latitude?.toFixed(5)||'—'}, ${r.longitude?.toFixed(5)||'—'}</td>
-      <td>${th}</td><td>${cb}</td><td class="admin-only">${editBtn}</td><td>${delBtn}</td></tr>`;
+      <td>${th}</td><td>${cb}</td>
+      <td><button onclick="printCard('${r.id}')" style="padding:2px 8px;background:rgba(113,201,110,0.15);color:#71c96e;border:1px solid rgba(113,201,110,0.3);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🖨️</button></td>
+      <td class="admin-only">${editBtn}</td><td>${delBtn}</td></tr>`;
   }).join('');
 }
 
@@ -1765,7 +2102,14 @@ function openDl(){
   document.getElementById('dl-btn').disabled=false;
   document.getElementById('dl-ov').classList.add('open');
 }
-function closeDl(){document.getElementById('dl-ov').classList.remove('open');}
+function closeDl(){
+  document.getElementById('dl-ov').classList.remove('open');
+  _dlBatchState=null;
+  const btn=document.getElementById('dl-btn');
+  btn.textContent='📥 تحميل الآن';
+  btn.style.background='';
+  btn.disabled=false;
+}
 function selFmt(f){dlFmt=f;['xlsx','csv','sqlite'].forEach(x=>document.getElementById('fmt-'+x).classList.toggle('sel',x===f));}
 function togPhotos(){const c=document.getElementById('dl-ph-chk');c.checked=!c.checked;dlPh=c.checked;}
 function setProg(cur,tot,msg){
@@ -1845,53 +2189,101 @@ async function dlSQLite(){
   saveAs(new Blob([db.export()],{type:'application/octet-stream'}),`gis_${new Date().toISOString().substring(0,10)}.db`);
   setProg(1,1,'✅ SQLite');
 }
+// متغيرات الـ batch
+let _dlBatchState=null;
+function dlBtnClick(){
+  if(_dlBatchState && _dlBatchState.curBatch < _dlBatchState.batches){
+    dlNextBatch();
+  } else {
+    startDl();
+  }
+}
 async function dlZip(){
-  const BATCH = 40; // 40 صورة في كل ZIP
-  const ph = filtered.filter(r=>r.thumbnail);
-  const tot = ph.length;
+  const BATCH = 30;
+  const allRecs = filtered.slice();
+  const tot = allRecs.length;
   const batches = Math.ceil(tot/BATCH);
 
   // جيب كل الـ photo_url مرة واحدة
   setProg(0,tot,'جلب روابط الصور...');
-  const ids = ph.map(r=>r.id).join(',');
-  const photoData = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${ids})`);
+  const withPhoto = allRecs.filter(r=>r.thumbnail);
+  // photoMap هيتملى lazily جوا كل batch عشان نقلل الضغط على DB
   const photoMap = {};
-  (photoData||[]).forEach(r=>{photoMap[r.id]=r.photo_url;});
 
-  // بناء CSV للبيانات مرة واحدة
-  const cols=['id','captured_at','surveyor_name','building_type','floors','latitude','longitude','road_name','notes','photo_name'];
-  const hdr=['المعرف','التاريخ','المساح','النوع','الأدوار','خط العرض','خط الطول','المحور','ملاحظات','اسم الصورة'];
-  const csvData='\uFEFF'+[hdr.join(','),...filtered.map(r=>cols.map(c=>{const v=r[c]??'';return String(v).includes(',')?`"${v}"`:v;}).join(','))].join('\n');
+  _dlBatchState = { allRecs, tot, batches, withPhoto, photoMap, curBatch:0, globalDone:0 };
+  await dlNextBatch();
+}
 
-  let globalDone=0;
-  for(let b=0;b<batches;b++){
-    const chunk = ph.slice(b*BATCH, (b+1)*BATCH);
-    const zip = new JSZip();
+async function dlNextBatch(){
+  const s = _dlBatchState;
+  if(!s || s.curBatch >= s.batches) return;
 
-    // أضيف الـ CSV في أول ZIP بس
-    if(b===0) zip.file('data.csv', csvData);
+  document.getElementById('dl-btn').disabled=true;
 
-    const pf = zip.folder('الصور');
-    for(let i=0;i<chunk.length;i++){
-      const r=chunk[i];
-      globalDone++;
-      setProg(globalDone,tot,`تحميل ${globalDone}/${tot} — دفعة ${b+1}/${batches}`);
-      const url=photoMap[r.id];
-      if(!url) continue;
-      try{
-        const blob=await(await fetch(url)).blob();
-        const fname=r.photo_name||(r.id+'.jpg');
-        pf.file(fname,blob);
-      }catch(_){}
-    }
+  const b = s.curBatch;
+  const chunk = s.allRecs.slice(b*30, (b+1)*30);
+  const chunkWithPhoto = chunk.filter(r=>r.thumbnail);
+  const zip = new JSZip();
+  const pf = zip.folder('الصور');
+  const imgCache = new Map();
 
-    setProg(globalDone,tot,`ضغط دفعة ${b+1}/${batches}...`);
-    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
-    const suffix=batches>1?`_part${b+1}of${batches}`:'';
-    saveAs(zipBlob,`gis_photos${suffix}_${new Date().toISOString().substring(0,10)}.zip`);
+  // جلب photo_url للدفعة الحالية فقط (30 سجل بدل كل السجلات)
+  setProg(s.globalDone, s.withPhoto.length, `جلب روابط دفعة ${b+1}/${s.batches}...`);
+  const batchIds = chunkWithPhoto.map(r=>r.id).join(',');
+  if(batchIds){
+    try{
+      const batchUrls = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${batchIds})`);
+      (batchUrls||[]).forEach(r=>{ s.photoMap[r.id]=r.photo_url; });
+    }catch(_){}
+  }
 
-    // استنى ثانية بين الدفعات عشان المتصفح ميتعبش
-    if(b<batches-1) await new Promise(r=>setTimeout(r,1000));
+  // تحميل الصور الأصلية للدفعة الحالية
+  for(let i=0;i<chunkWithPhoto.length;i++){
+    const r=chunkWithPhoto[i];
+    s.globalDone++;
+    setProg(s.globalDone, s.withPhoto.length, `تحميل صورة ${s.globalDone}/${s.withPhoto.length} — دفعة ${b+1}/${s.batches}`);
+    const url=s.photoMap[r.id];
+    if(!url) continue;
+    try{
+      const blob=await(await fetch(url)).blob();
+      const b64=await blobToB64(blob);
+      const ext=url.toLowerCase().includes('.png')?'png':'jpeg';
+      imgCache.set(r.id,{b64,blob,ext});
+      const fname=r.photo_name||(r.id+'.jpg');
+      pf.file(fname,blob);
+    }catch(_){}
+  }
+
+  // بناء Excel بالصور مدمجة
+  setProg(s.globalDone, s.withPhoto.length, `بناء Excel دفعة ${b+1}/${s.batches}...`);
+  const prevFiltered=filtered;
+  filtered=chunk;
+  const wb=await buildXLS(imgCache);
+  filtered=prevFiltered;
+  zip.file(`data_part${b+1}of${s.batches}.xlsx`, await wb.xlsx.writeBuffer());
+
+  setProg(s.globalDone, s.withPhoto.length, `ضغط دفعة ${b+1}/${s.batches}...`);
+  const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+  const suffix=s.batches>1?`_part${b+1}of${s.batches}`:'';
+  saveAs(zipBlob,`gis_backup${suffix}_${new Date().toISOString().substring(0,10)}.zip`);
+
+  imgCache.clear();
+  s.curBatch++;
+
+  if(s.curBatch < s.batches){
+    // تغيير نص الزرار للدفعة التالية
+    const btn=document.getElementById('dl-btn');
+    btn.textContent=`⏭ دفعة ${s.curBatch+1} من ${s.batches} — اضغط للتحميل`;
+    btn.style.background='linear-gradient(135deg,#e65100,#ff9800)';
+    btn.disabled=false;
+    setProg(s.globalDone, s.withPhoto.length, `✅ دفعة ${b+1} جاهزة — اضغط الزرار للدفعة التالية`);
+  } else {
+    setProg(1,1,`✅ اكتمل! ${s.batches} ملف ZIP`);
+    const btn=document.getElementById('dl-btn');
+    btn.textContent='📥 تحميل الآن';
+    btn.style.background='';
+    btn.disabled=false;
+    _dlBatchState=null;
   }
 }
 function downloadCSV(){dlCSV();}
