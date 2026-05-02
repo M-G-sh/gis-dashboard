@@ -193,6 +193,10 @@ header {
   border-left:1px solid var(--border);
   display:flex; flex-direction:column; overflow:hidden; flex-shrink:0;
 }
+.side-scroll {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  display:flex; flex-direction:column;
+}
 .side-sect { border-bottom:1px solid var(--border); }
 .sect-head {
   padding:9px 14px 6px;
@@ -225,7 +229,7 @@ header {
   border-bottom:1px solid var(--border);
   display:flex; justify-content:space-between; align-items:center;
 }
-#records-list { overflow-y:auto; flex:1; }
+#records-list { overflow-y:auto; max-height:300px; }
 .rec {
   display:flex; gap:8px; padding:7px 12px;
   border-bottom:1px solid var(--border);
@@ -674,6 +678,8 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
   <div class="side" id="side-panel">
     <button class="side-close-btn" onclick="toggleSidePanel()">✕</button>
 
+    <div class="side-scroll">
+
     <div class="side-sect">
       <div class="sect-head">
         <span>المساحون</span>
@@ -714,6 +720,10 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
           <button onclick="saveTarget()"
             style="padding:7px 12px;background:linear-gradient(135deg,#0078d4,#00c5ff);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;font-family:Cairo,sans-serif;">حفظ</button>
         </div>
+        <button onclick="resetTarget()"
+          style="margin-top:8px;width:100%;padding:6px;background:transparent;border:1px solid rgba(244,67,54,.4);border-radius:7px;color:#f44336;cursor:pointer;font-size:11px;font-family:Cairo,sans-serif;">
+          🗑️ إزالة الهدف
+        </button>
       </div>
     </div>
 
@@ -726,6 +736,8 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       <div class="sect-head"><span>توزيع الأنواع</span></div>
       <div id="type-bars"></div>
     </div>
+
+    </div><!-- end side-scroll -->
 
     <div class="side-foot">
       <button class="ref-btn" onclick="loadData()">🔄 تحديث البيانات</button>
@@ -2746,6 +2758,17 @@ function saveTarget(){
   _target = v;
   localStorage.setItem('gis_target', v);
   toggleTargetEdit();
+  renderTarget();
+}
+
+function resetTarget(){
+  if(!confirm('هتمسح الهدف؟')) return;
+  _target = 0;
+  localStorage.removeItem('gis_target');
+  // أغلق الفورم وأظهر العرض
+  document.getElementById('target-form').style.display='none';
+  document.getElementById('target-display').style.display='block';
+  document.getElementById('target-edit-btn').textContent='تعديل';
   renderTarget();
 }
 
