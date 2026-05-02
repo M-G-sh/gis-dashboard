@@ -958,6 +958,27 @@ async function sbGet(path) {
   return r.json();
 }
 
+async function sbPatch(table, id, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {...HDR, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+// Escapes HTML entities — call on every user-supplied value inserted into innerHTML
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Takes a record id and opens the delete dialog without string injection risk
+function confirmDeleteById(id) {
+  const r = allData.find(x => x.id === id);
+  if (!r) return;
+  confirmDelete(id, r.surveyor_name||'—', (r.captured_at||'').substring(0,16).replace('T',' '));
+}
+
 // ── Auth ─────────────────────────────────────────
 const ADMIN_EMAIL = 'mohamed.gamal.shokry88@gmail.com';
 let currentIsAdmin = false;
@@ -1066,7 +1087,11 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  await sbClient.auth.signOut();
+  await sbClient.auth.signOut().catch(()=>{});
+  allData = []; filtered = [];
+  currentIsAdmin = false;
+  _sessionToken = null;
+  if (_sessionCheckInterval) { clearInterval(_sessionCheckInterval); _sessionCheckInterval = null; }
   document.getElementById('login-ov').style.display='flex';
 }
 
@@ -1096,7 +1121,7 @@ async function loadAnalytics() {
     const users = [...new Set(_visitsData.map(v => v.user_email))];
     const sel = document.getElementById('v-user');
     sel.innerHTML = '<option value="">👥 كل المستخدمين</option>' +
-      users.map(u => `<option value="${u}">${u.split('@')[0]}</option>`).join('');
+      users.map(u => `<option value="${esc(u)}">${esc(u.split('@')[0])}</option>`).join('');
   } catch(_) {}
 }
 
@@ -1117,7 +1142,7 @@ function renderVisits() {
     const dt = new Date(v.visited_at);
     const dateStr = dt.toLocaleDateString('ar-SA', {timeZone:'Asia/Riyadh', year:'numeric', month:'2-digit', day:'2-digit'});
     const timeStr = dt.toLocaleTimeString('ar-SA', {timeZone:'Asia/Riyadh', hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    const name = (v.user_email||'').split('@')[0];
+    const name = esc((v.user_email||'').split('@')[0]);
     return `<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:7px 12px;color:var(--text3);">${i+1}</td>
       <td style="padding:7px 12px;color:var(--accent);font-weight:600;">${name}</td>
@@ -1278,8 +1303,8 @@ function renderSurveyors() {
       const dot = `<span style="width:8px;height:8px;border-radius:50%;background:${online?'#4CAF50':'#f44336'};
                    display:inline-block;flex-shrink:0;box-shadow:0 0 ${online?'4px #4CAF50':'0'};"></span>`;
       return `
-      <div class="sv-item ${activeSrv===n?'active':''}" onclick="setSrv('${n}')">
-        <div class="sv-n">${dot}<span>${n}</span></div>
+      <div class="sv-item ${activeSrv===n?'active':''}" data-srv="${esc(n)}" onclick="setSrv(this.dataset.srv)">
+        <div class="sv-n">${dot}<span>${esc(n)}</span></div>
         <span class="sv-cnt">${c}</span>
       </div>`;
     }).join('');
@@ -1717,17 +1742,17 @@ function renderList() {
   document.getElementById('records-list').innerHTML =
     filtered.slice(0,100).map((r,i)=>{
       const th = r.photo_url
-        ? `<img class="rec-img" src="${r.photo_url}" onclick="event.stopPropagation();openLb('${r.photo_url}')"/>`
+        ? `<img class="rec-img" src="${esc(r.photo_url)}" onclick="event.stopPropagation();openLbById('${r.id}')"/>`
         : r.thumbnail
-          ? `<img class="rec-img" src="data:image/jpeg;base64,${r.thumbnail}" onclick="event.stopPropagation();openLb('data:image/jpeg;base64,${r.thumbnail}')"/>`
+          ? `<img class="rec-img" src="data:image/jpeg;base64,${r.thumbnail}" onclick="event.stopPropagation();openLbById('${r.id}')"/>`
           : `<div class="rec-ph">📷</div>`;
       return `<div class="rec" onclick="focusRec(${i})">
         ${th}
         <div class="rec-info">
           <div class="rec-date">${r.captured_at?.substring(0,16).replace('T',' ')||'—'}</div>
-          <div class="rec-type" style="color:${tc(r.building_type)}">${r.building_type||'غير محدد'}${r.floors?' · '+r.floors+' أدوار':''}</div>
+          <div class="rec-type" style="color:${tc(r.building_type)}">${esc(r.building_type)||'غير محدد'}${r.floors?' · '+r.floors+' أدوار':''}</div>
           <div class="rec-loc">📍 ${r.latitude?.toFixed(4)||'?'}, ${r.longitude?.toFixed(4)||'?'}</div>
-          ${r.surveyor_name?`<div class="rec-who">👤 ${r.surveyor_name}</div>`:''}
+          ${r.surveyor_name?`<div class="rec-who">👤 ${esc(r.surveyor_name)}</div>`:''}
         </div>
       </div>`;
     }).join('');
@@ -2147,7 +2172,7 @@ function renderChart() {
   const max=sorted[0]?.[1]||1;
   document.getElementById('type-bars').innerHTML = sorted.map(([t,c])=>`
     <div class="bar-row">
-      <div class="bar-lbl">${t}</div>
+      <div class="bar-lbl">${esc(t)}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${(c/max*100).toFixed(0)}%;background:${tc(t)}"></div></div>
       <div class="bar-val">${c}</div>
     </div>`).join('');
@@ -2261,7 +2286,7 @@ function openAttr(){
   const names = [...new Set(allData.map(r=>r.surveyor_name||'غير محدد'))].sort();
   const sel = document.getElementById('attr-srv');
   sel.innerHTML = '<option value="">👥 كل المساحين</option>' +
-    names.map(n=>`<option value="${n}">${n}</option>`).join('');
+    names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   renderAttr();
   document.getElementById('attr-panel').classList.add('open');
   map.invalidateSize();
@@ -2282,7 +2307,7 @@ function renderAttr(){
     const th=r.thumbnail?`<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')">` :'—';
     const cb=r.thumbnail?`<button onclick="openCmp(${mi})" style="padding:2px 8px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🛰️</button>`:'—';
     const delBtn= currentIsAdmin
-      ? `<button onclick="confirmDelete('${r.id}','${(r.surveyor_name||'').replace(/'/g,"\\'")}','${(r.captured_at||'').substring(0,16).replace('T',' ')}')" style="padding:2px 8px;background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🗑️</button>`
+      ? `<button onclick="confirmDeleteById('${r.id}')" style="padding:2px 8px;background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🗑️</button>`
       : `<span style="color:var(--text3);font-size:10px;">—</span>`;
     const editBtn= currentIsAdmin
       ? `<button onclick="editRow('${r.id}')" style="padding:2px 8px;background:rgba(0,197,255,0.15);color:#00c5ff;border:1px solid rgba(0,197,255,0.3);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">✏️</button>`
@@ -2290,11 +2315,11 @@ function renderAttr(){
     return `<tr data-id="${r.id}" onclick="highlightRow('${r.id}')">
       <td class="num">${i+1}</td>
       <td>${r.captured_at?.substring(0,16).replace('T',' ')||'—'}</td>
-      <td>${r.surveyor_name||'—'}</td>
-      <td style="color:${tc(r.building_type)};font-weight:600">${r.building_type||'—'}</td>
+      <td>${esc(r.surveyor_name)||'—'}</td>
+      <td style="color:${tc(r.building_type)};font-weight:600">${esc(r.building_type)||'—'}</td>
       <td class="num">${r.floors??'—'}</td>
-      <td style="font-size:11px">${r.road_name||'—'}</td>
-      <td style="font-size:11px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.notes||''}">${r.notes||'—'}</td>
+      <td style="font-size:11px">${esc(r.road_name)||'—'}</td>
+      <td style="font-size:11px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(r.notes)}">${esc(r.notes)||'—'}</td>
       <td class="num" style="font-size:10px">${r.latitude?.toFixed(5)||'—'}, ${r.longitude?.toFixed(5)||'—'}</td>
       <td>${th}</td><td>${cb}</td>
       <td><button onclick="printCard('${r.id}')" style="padding:2px 8px;background:rgba(113,201,110,0.15);color:#71c96e;border:1px solid rgba(113,201,110,0.3);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🖨️</button></td>
@@ -2328,13 +2353,7 @@ async function saveEdit() {
     notes:         document.getElementById('edit-notes').value || null,
   };
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/surveys?id=eq.${_editId}`, {
-      method: 'PATCH',
-      headers: {...HDR, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(await res.text());
-    // تحديث allData محلياً
+    await sbPatch('surveys', _editId, body);
     const i = allData.findIndex(x => x.id === _editId);
     if (i !== -1) Object.assign(allData[i], body);
     applyFilter();
@@ -2892,9 +2911,9 @@ function renderGallery(){
       ${img}
       ${isPano?'<div class="gal-pano-badge">360°</div>':''}
       <div class="gal-overlay">
-        <div class="gal-type">${r.building_type||'غير محدد'}</div>
-        <div class="gal-meta">👷 ${r.surveyor_name||'—'}</div>
-        <div class="gal-meta">📅 ${date}${r.road_name?' &nbsp;·&nbsp; 🛣️ '+r.road_name:''}</div>
+        <div class="gal-type">${esc(r.building_type)||'غير محدد'}</div>
+        <div class="gal-meta">👷 ${esc(r.surveyor_name)||'—'}</div>
+        <div class="gal-meta">📅 ${date}${r.road_name?' &nbsp;·&nbsp; 🛣️ '+esc(r.road_name):''}</div>
       </div>
       <div class="gal-colorbar" style="background:${color};"></div>
     </div>`;
@@ -2969,11 +2988,11 @@ function runDupScan(){
       <div style="flex:1;background:var(--panel2);border-radius:8px;padding:10px 12px;min-width:0;">
         <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">سجل #${r.id}</div>
         ${r.thumbnail?`<img src="data:image/jpeg;base64,${r.thumbnail}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;margin-bottom:6px;"/>`:''}
-        <div style="font-size:12px;font-weight:700;color:${tc(r.building_type)};">${r.building_type||'غير محدد'}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:3px;">👷 ${r.surveyor_name||'—'}</div>
+        <div style="font-size:12px;font-weight:700;color:${tc(r.building_type)};">${esc(r.building_type)||'غير محدد'}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px;">👷 ${esc(r.surveyor_name)||'—'}</div>
         <div style="font-size:11px;color:var(--text2);">📅 ${(r.captured_at||'').slice(0,16).replace('T',' ')}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;">📍 ${r.latitude?.toFixed(5)}, ${r.longitude?.toFixed(5)}</div>
-        ${currentIsAdmin?`<button onclick="confirmDelete('${r.id}','${(r.surveyor_name||'').replace(/'/g,"\\'")}','${(r.captured_at||'').slice(0,16).replace('T',' ')}')"
+        ${currentIsAdmin?`<button onclick="confirmDeleteById('${r.id}')"
           style="margin-top:8px;width:100%;padding:5px;background:rgba(244,67,54,.15);color:#f44336;border:1px solid rgba(244,67,54,.3);border-radius:5px;cursor:pointer;font-family:Cairo,sans-serif;font-size:11px;font-weight:700;">🗑️ حذف هذا السجل</button>`:''}
       </div>`;
 
@@ -3038,8 +3057,8 @@ function showNotif(rec) {
   toast.innerHTML = thumb
     + '<div style="flex:1;min-width:0;">'
     + '<div style="font-size:11px;color:'+color+';font-weight:700;margin-bottom:2px;">📍 سجل جديد</div>'
-    + '<div style="font-size:13px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(rec.building_type||'غير محدد')+'</div>'
-    + '<div style="font-size:11px;color:#90a4ae;margin-top:2px;">'+(rec.surveyor_name||'مجهول')+' — '+(rec.captured_at||'').slice(0,16).replace('T',' ')+'</div>'
+    + '<div style="font-size:13px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(rec.building_type||'غير محدد')+'</div>'
+    + '<div style="font-size:11px;color:#90a4ae;margin-top:2px;">'+esc(rec.surveyor_name||'مجهول')+' — '+(rec.captured_at||'').slice(0,16).replace('T',' ')+'</div>'
     + '</div>'
     + '<button onclick="this.closest(\'div\').remove()" style="background:none;border:none;color:#607d9e;font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;">✕</button>';
 
@@ -3337,7 +3356,7 @@ async function loadUsage(){
 
     el.innerHTML = html;
   }catch(e){
-    el.innerHTML=`<div style="color:#f44336;text-align:center;">خطأ: ${e.message}</div>`;
+    el.textContent='خطأ: '+e.message;
   }
 }
 </script>
