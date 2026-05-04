@@ -82,11 +82,56 @@ header {
   display:flex; align-items:center; gap:0;
   flex-shrink:0; z-index:200;
   overflow:hidden;
+  position:relative;
   box-shadow:0 1px 6px rgba(0,0,0,.06);
 }
-[data-theme="light"] header {
-  box-shadow:0 2px 8px rgba(21,101,192,.08);
+/* User zone pinned to the absolute left of header — always visible */
+.h-user-zone {
+  position:absolute; left:0; top:0; bottom:0;
+  display:flex; align-items:center;
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  z-index:10;
 }
+[data-theme="light"] header {
+  background:#7d7150;
+  border-bottom-color:#6a5f44;
+  box-shadow:0 2px 10px rgba(125,113,80,.25);
+}
+[data-theme="light"] .h-brand { border-left-color:rgba(255,255,255,.2); }
+[data-theme="light"] .h-title { color:#fff; }
+[data-theme="light"] .h-sub   { color:rgba(255,255,255,.8); }
+[data-theme="light"] .kpi     { border-left-color:rgba(255,255,255,.15); }
+[data-theme="light"] .kpi .n  { color:#fff; }
+[data-theme="light"] .kpi .l  { color:rgba(255,255,255,.65); }
+[data-theme="light"] .kpi:hover { background:rgba(255,255,255,.08); }
+[data-theme="light"] .h-actions { border-right-color:rgba(255,255,255,.15); }
+[data-theme="light"] .hbtn {
+  background:rgba(255,255,255,.15);
+  border-color:rgba(255,255,255,.25);
+  color:#fff;
+}
+[data-theme="light"] .hbtn:hover,
+[data-theme="light"] .hbtn.act  {
+  background:rgba(255,255,255,.3);
+  border-color:rgba(255,255,255,.5);
+  color:#fff;
+}
+[data-theme="light"] .tbtn {
+  background:rgba(255,255,255,.15);
+  border-color:rgba(255,255,255,.25);
+  color:#fff;
+}
+[data-theme="light"] .tbtn:hover { background:rgba(255,255,255,.3); }
+[data-theme="light"] #last-upd { color:rgba(255,255,255,.6); }
+[data-theme="light"] .h-user-zone {
+  background:#6a5f44;
+  border-right-color:rgba(255,255,255,.15);
+}
+[data-theme="light"] #user-info { border-left-color:rgba(255,255,255,.15); }
+[data-theme="light"] #user-name { color:#fff !important; }
+[data-theme="light"] #user-role { color:rgba(255,255,255,.8) !important; }
+[data-theme="light"] .h-user-zone button { border-left-color:rgba(255,255,255,.15) !important; color:rgba(255,200,200,1) !important; }
 .h-brand {
   width:var(--side-w);
   display:flex; align-items:center; gap:10px;
@@ -129,7 +174,7 @@ header {
 /* Header right */
 .h-actions {
   display:flex; align-items:center; gap:5px;
-  padding:0 10px; height:100%; border-right:1px solid var(--border);
+  padding:0 10px 0 250px; height:100%; border-right:1px solid var(--border);
   flex-shrink:0; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; max-width:100%;
 }
@@ -567,8 +612,8 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <span id="last-upd" class="blink">تحميل...</span>
   </div>
 
-  <!-- ── User zone: always pinned on the left ── -->
-  <div style="display:flex;align-items:center;gap:0;flex-shrink:0;border-right:1px solid var(--border);height:100%;">
+  <!-- ── User zone: absolute-pinned to left edge ── -->
+  <div class="h-user-zone">
     <!-- user info + dropdown -->
     <div id="user-info" style="position:relative;display:flex;align-items:center;gap:8px;
          padding:0 12px;height:100%;cursor:pointer;border-left:1px solid var(--border);"
@@ -819,10 +864,10 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       <div id="map"></div>
       <!-- فلتر التواريخ على الخريطة -->
       <div style="position:absolute;top:10px;left:50px;z-index:1000;display:flex;flex-direction:column;gap:6px;max-width:320px;">
-        <div style="background:rgba(30,30,30,.95);border:1px solid #3a3a3a;border-radius:10px;
-                    padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,.5);font-family:SuisseIntl,sans-serif;">
+        <div style="background:rgba(125,113,80,.95);border:1px solid rgba(165,150,100,.5);border-radius:10px;
+                    padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,.3);font-family:SuisseIntl,sans-serif;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-size:12px;color:#b0b0b0;">📅 فلتر التواريخ</span>
+            <span style="font-size:12px;color:#fff;">📅 فلتر التواريخ</span>
             <button onclick="clearMapDateFilter()" title="مسح الكل"
               style="margin-right:auto;background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.3);
                      color:#f44336;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px;
@@ -830,28 +875,28 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
             <select id="map-date-input" onchange="addMapDate()"
-              style="flex:1;padding:5px 8px;background:#1a1a1a;border:1px solid #3a3a3a;
+              style="flex:1;padding:5px 8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
                      border-radius:6px;color:#fff;font-family:SuisseIntl,sans-serif;font-size:12px;outline:none;cursor:pointer;">
               <option value="">— اختر تاريخ —</option>
             </select>
           </div>
           <div id="map-date-tags" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
         </div>
-        <div id="map-date-legend" style="display:none;background:rgba(30,30,30,.92);border:1px solid #3a3a3a;
-             border-radius:8px;padding:7px 12px;font-size:11px;font-family:SuisseIntl,sans-serif;"></div>
+        <div id="map-date-legend" style="display:none;background:rgba(125,113,80,.92);border:1px solid rgba(165,150,100,.4);
+             border-radius:8px;padding:7px 12px;font-size:11px;font-family:SuisseIntl,sans-serif;color:#fff;"></div>
       </div>
 
       <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:6px;">
         <button id="gis-layers-btn" onclick="toggleGisDropdown()"
-          style="background:rgba(36,36,36,.92);border:1px solid #3a3a3a;color:#b0b0b0;
+          style="background:rgba(125,113,80,.95);border:1px solid rgba(165,150,100,.5);color:#fff;
                  padding:7px 13px;border-radius:8px;cursor:pointer;font-family:SuisseIntl,sans-serif;
-                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)">
           🗂️ الطبقات
         </button>
         <button class="admin-only" onclick="openUsageModal()"
-          style="background:rgba(36,36,36,.92);border:1px solid rgba(0,197,255,0.4);color:#00c5ff;
+          style="background:rgba(125,113,80,.95);border:1px solid rgba(165,150,100,.5);color:#fff;
                  padding:7px 13px;border-radius:8px;cursor:pointer;font-family:SuisseIntl,sans-serif;
-                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)">
           🗄️ السيرفر
         </button>
       </div>
