@@ -51,16 +51,18 @@
   --side-w:    300px;
 }
 [data-theme="light"] {
-  --bg:        #f0f2f5;
+  --bg:        #eef1f6;
   --panel:     #ffffff;
-  --panel2:    #f5f7fa;
-  --border:    #dde1e7;
-  --accent:    #0078d4;
-  --accent2:   #00b4d8;
-  --green:     #107c10;
-  --text:      #1a1a1a;
-  --text2:     #555;
-  --text3:     #999;
+  --panel2:    #f4f6fb;
+  --border:    #d8dde8;
+  --accent:    #1565C0;
+  --accent2:   #1976D2;
+  --green:     #2e7d32;
+  --orange:    #e65100;
+  --red:       #c62828;
+  --text:      #0d1117;
+  --text2:     #4a5568;
+  --text3:     #8a96a8;
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -80,6 +82,10 @@ header {
   display:flex; align-items:center; gap:0;
   flex-shrink:0; z-index:200;
   overflow:hidden;
+  box-shadow:0 1px 6px rgba(0,0,0,.06);
+}
+[data-theme="light"] header {
+  box-shadow:0 2px 8px rgba(21,101,192,.08);
 }
 .h-brand {
   width:var(--side-w);
@@ -224,7 +230,10 @@ header {
   color:var(--text2); transition:all .12s; border-right:3px solid transparent;
 }
 .sv-item:hover { background:var(--panel2); color:var(--text); }
-.sv-item.active { background:rgba(0,197,255,.08); color:var(--accent); border-right-color:var(--accent); }
+.sv-item.active { background:rgba(var(--accent-rgb,0,197,255),.1); color:var(--accent); border-right-color:var(--accent); }
+[data-theme="light"] .sv-item.active { background:rgba(21,101,192,.08); }
+[data-theme="light"] .hbtn:hover { color:#fff; }
+[data-theme="light"] .hbtn.act  { color:#fff; }
 .sv-item .sv-n { display:flex; align-items:center; gap:6px; }
 .sv-cnt { font-size:10px; font-weight:700; color:var(--text3); }
 .sv-item.active .sv-cnt { color:var(--accent); }
@@ -489,7 +498,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 .dtgl.on::after { left:19px; }
 </style>
 </head>
-<body data-theme="dark">
+<body data-theme="light">
 
 <!-- ═══ HEADER ═══ -->
 <header>
@@ -554,7 +563,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <button class="hbtn" id="notif-btn" onclick="clearNotifBadge()" title="الإشعارات" style="position:relative;">
       🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f44336;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:700;align-items:center;justify-content:center;animation:popIn .3s ease;"></span>
     </button>
-    <button class="tbtn" id="tbtn" onclick="toggleTheme()" title="ثيم">🌙</button>
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()" title="ثيم">☀️</button>
     <span id="last-upd" class="blink">تحميل...</span>
     <div style="width:1px;height:32px;background:var(--border);margin:0 6px;flex-shrink:0;"></div>
     <div id="user-info" style="position:relative;display:flex;align-items:center;gap:8px;padding:0 8px;flex-shrink:0;cursor:pointer;"
@@ -610,10 +619,11 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 
 <!-- ═══ LOGIN OVERLAY ═══ -->
 <div id="login-ov" style="display:none;position:fixed;inset:0;z-index:999999;
-     background:linear-gradient(160deg,#0d1117,#1a2332);
+     background:linear-gradient(160deg,#e8edf5,#dce4f0);
      align-items:center;justify-content:center;font-family:SuisseIntl,sans-serif">
-  <div style="background:#1e2a3a;border:1px solid #2d3f55;border-radius:20px;
-              padding:36px 32px;width:100%;max-width:360px;text-align:center">
+  <div style="background:#ffffff;border:1px solid #d0d8e8;border-radius:20px;
+              padding:36px 32px;width:100%;max-width:360px;text-align:center;
+              box-shadow:0 8px 40px rgba(21,101,192,0.12)">
     <div style="margin-bottom:10px;display:flex;justify-content:center;">
       <div style="background:#f5f0e8;border-radius:10px;padding:6px;display:inline-flex;">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 255 249.48" width="48" height="48">
@@ -637,16 +647,16 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
         </svg>
       </div>
     </div>
-    <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:4px">DRconsultancy</div>
-    <div style="font-size:12px;color:#607d9e;margin-bottom:28px">تحديث تنظيمات اشتراطات البناء</div>
+    <div style="font-size:20px;font-weight:900;color:#0d1117;margin-bottom:4px">DRconsultancy</div>
+    <div style="font-size:12px;color:#5a7a9a;margin-bottom:28px">تحديث تنظيمات اشتراطات البناء</div>
     <input id="login-email" type="email" placeholder="البريد الإلكتروني"
-      style="width:100%;padding:12px 14px;background:#0d1117;border:1px solid #2d3f55;
-             border-radius:10px;color:#fff;font-family:SuisseIntl,sans-serif;font-size:14px;
+      style="width:100%;padding:12px 14px;background:#f4f7fb;border:1px solid #d0d8e8;
+             border-radius:10px;color:#0d1117;font-family:SuisseIntl,sans-serif;font-size:14px;
              margin-bottom:10px;outline:none;text-align:right"/>
     <div style="position:relative;margin-bottom:14px;">
       <input id="login-pass" type="password" placeholder="كلمة المرور"
-        style="width:100%;padding:12px 40px 12px 14px;background:#0d1117;border:1px solid #2d3f55;
-               border-radius:10px;color:#fff;font-family:SuisseIntl,sans-serif;font-size:14px;
+        style="width:100%;padding:12px 40px 12px 14px;background:#f4f7fb;border:1px solid #d0d8e8;
+               border-radius:10px;color:#0d1117;font-family:SuisseIntl,sans-serif;font-size:14px;
                outline:none;text-align:right"
         onkeydown="if(event.key==='Enter')doLogin()"/>
       <button type="button" onclick="
@@ -1245,12 +1255,21 @@ document.addEventListener('click', e => {
 });
 
 // ── Theme ────────────────────────────────────────
-let dark = true;
+let dark = false;
 function toggleTheme() {
   dark = !dark;
   document.body.setAttribute('data-theme', dark?'dark':'light');
   document.getElementById('tbtn').textContent = dark?'🌙':'☀️';
+  localStorage.setItem('gis_theme', dark?'dark':'light');
 }
+(function(){
+  const saved = localStorage.getItem('gis_theme');
+  if (saved === 'dark') {
+    dark = true;
+    document.body.setAttribute('data-theme','dark');
+    document.getElementById('tbtn').textContent = '🌙';
+  }
+})();
 
 // ── State ────────────────────────────────────────
 let allData=[], filtered=[], activeSrv='all';
