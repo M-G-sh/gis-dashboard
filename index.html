@@ -564,20 +564,28 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
   border-radius:50%;background:#7d7150;transition:left .2s; }
 .dtgl.on::after { left:19px;background:#7d7150; }
 
-/* Leaflet controls — gold theme */
-.leaflet-control-layers,.leaflet-bar a,.leaflet-control-zoom a {
-  background:rgba(125,113,80,.92) !important;
-  border-color:rgba(165,150,100,.5) !important;
+/* Leaflet controls — frosted gold */
+.leaflet-bar a, .leaflet-control-zoom a {
+  background:rgba(125,113,80,.55) !important;
+  backdrop-filter:blur(14px) !important;
+  -webkit-backdrop-filter:blur(14px) !important;
+  border-color:rgba(200,185,140,.4) !important;
   color:#fff !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.3) !important;
 }
-.leaflet-bar a:hover { background:rgba(125,113,80,1) !important; }
-.leaflet-control-layers-expanded {
-  background:rgba(125,113,80,.96) !important;
-  border:1px solid rgba(165,150,100,.5) !important;
+.leaflet-bar a:hover { background:rgba(125,113,80,.8) !important; }
+.leaflet-control-layers-expanded, .leaflet-control-layers {
+  background:rgba(125,113,80,.45) !important;
+  backdrop-filter:blur(18px) !important;
+  -webkit-backdrop-filter:blur(18px) !important;
+  border:1px solid rgba(200,185,140,.35) !important;
   color:#fff !important;
   font-family:SuisseIntl,sans-serif !important;
+  box-shadow:0 4px 20px rgba(0,0,0,.2) !important;
 }
-.leaflet-control-layers label { color:#fff !important; }
+.leaflet-control-layers label,
+.leaflet-control-layers-base label span,
+.leaflet-control-layers-separator { color:#fff !important; border-color:rgba(255,255,255,.2) !important; }
 </style>
 </head>
 <body data-theme="light">
@@ -797,8 +805,9 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 
 <!-- ═══ GIS LAYERS DROPDOWN ═══ -->
 <div id="gis-dropdown" style="display:none;position:fixed;
-     background:rgba(125,113,80,.97);border:1px solid rgba(165,150,100,.5);border-radius:10px;
-     min-width:210px;z-index:99999;box-shadow:0 6px 24px rgba(0,0,0,.35);overflow:hidden">
+     background:rgba(125,113,80,.5);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+     border:1px solid rgba(200,185,140,.35);border-radius:12px;
+     min-width:210px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.25);overflow:hidden">
   <div class="gis-lrow" onclick="dashToggleGis('allRoads')">
     <span>🛣️ الطرق الرئيسية</span>
     <div class="dtgl" id="dtgl-allRoads"></div>
@@ -902,8 +911,9 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       <div id="map"></div>
       <!-- فلتر التواريخ على الخريطة -->
       <div style="position:absolute;top:10px;left:50px;z-index:1000;display:flex;flex-direction:column;gap:6px;max-width:320px;">
-        <div style="background:rgba(125,113,80,.95);border:1px solid rgba(165,150,100,.5);border-radius:10px;
-                    padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,.3);font-family:SuisseIntl,sans-serif;">
+        <div style="background:rgba(125,113,80,.45);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+                    border:1px solid rgba(200,185,140,.35);border-radius:12px;
+                    padding:8px 12px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-family:SuisseIntl,sans-serif;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
             <span style="font-size:12px;color:#fff;">📅 فلتر التواريخ</span>
             <button onclick="clearMapDateFilter()" title="مسح الكل"
@@ -920,21 +930,26 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
           </div>
           <div id="map-date-tags" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
         </div>
-        <div id="map-date-legend" style="display:none;background:rgba(125,113,80,.92);border:1px solid rgba(165,150,100,.4);
-             border-radius:8px;padding:7px 12px;font-size:11px;font-family:SuisseIntl,sans-serif;color:#fff;"></div>
+        <div id="map-date-legend" style="display:none;background:rgba(125,113,80,.4);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+             border:1px solid rgba(200,185,140,.3);border-radius:8px;padding:7px 12px;font-size:11px;
+             font-family:SuisseIntl,sans-serif;color:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);"></div>
       </div>
 
       <div style="position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:6px;">
         <button id="gis-layers-btn" onclick="toggleGisDropdown()"
-          style="background:rgba(125,113,80,.95);border:1px solid rgba(165,150,100,.5);color:#fff;
-                 padding:7px 13px;border-radius:8px;cursor:pointer;font-family:SuisseIntl,sans-serif;
-                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+          style="background:rgba(125,113,80,.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+                 border:1px solid rgba(200,185,140,.35);color:#fff;
+                 padding:7px 14px;border-radius:10px;cursor:pointer;font-family:SuisseIntl,sans-serif;
+                 font-size:13px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.2);
+                 text-shadow:0 1px 2px rgba(0,0,0,.25);">
           🗂️ الطبقات
         </button>
         <button class="admin-only" onclick="openUsageModal()"
-          style="background:rgba(125,113,80,.95);border:1px solid rgba(165,150,100,.5);color:#fff;
-                 padding:7px 13px;border-radius:8px;cursor:pointer;font-family:SuisseIntl,sans-serif;
-                 font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+          style="background:rgba(125,113,80,.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+                 border:1px solid rgba(200,185,140,.35);color:#fff;
+                 padding:7px 14px;border-radius:10px;cursor:pointer;font-family:SuisseIntl,sans-serif;
+                 font-size:13px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.2);
+                 text-shadow:0 1px 2px rgba(0,0,0,.25);">
           🗄️ السيرفر
         </button>
       </div>
