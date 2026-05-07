@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
@@ -99,6 +99,9 @@ header {
   box-shadow:0 2px 10px rgba(125,113,80,.25);
 }
 [data-theme="light"] .h-brand { border-left-color:rgba(255,255,255,.2); }
+/* RCMC logo blend: multiply on gold, screen on dark */
+[data-theme="light"]  .h-brand img[alt="RCMC"] { mix-blend-mode:multiply; }
+[data-theme="dark"]   .h-brand img[alt="RCMC"] { mix-blend-mode:screen; filter:drop-shadow(0 1px 4px rgba(0,0,0,.4)) brightness(1.15); }
 [data-theme="light"] .h-title { color:#fff; }
 [data-theme="light"] .h-sub   { color:rgba(255,255,255,.8); }
 [data-theme="light"] .kpi     { border-left-color:rgba(255,255,255,.15); }
@@ -436,6 +439,7 @@ thead th:hover { background:var(--accent); color:#000; }
 tbody tr { border-bottom:1px solid var(--border); transition:background .15s; cursor:pointer; }
 tbody tr:hover { background:var(--panel2); }
 tbody tr.selected { background:rgba(0,197,255,.15); outline:1px solid #00c5ff55; }
+[data-theme="light"] tbody tr.selected { background:rgba(125,113,80,.12); outline:1px solid rgba(125,113,80,.4); }
 tbody td { padding:6px 10px; color:var(--text2); white-space:nowrap; }
 tbody td.num { color:var(--accent); font-weight:600; }
 tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cursor:zoom-in; }
@@ -473,7 +477,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 }
 #poly-hint {
   display:none; position:fixed; top:70px; left:50%; transform:translateX(-50%);
-  background:rgba(0,0,0,.8); color:#00c5ff; border:1px solid #00c5ff;
+  background:rgba(0,0,0,.8); color:var(--accent); border:1px solid var(--accent);
   border-radius:20px; padding:7px 18px; font-size:12px; z-index:2000;
   font-family:'SuisseIntl',sans-serif; pointer-events:auto;
 }
@@ -547,7 +551,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 /* شريط اللون في أسفل الكارد دايمًا */
 .gal-colorbar{position:absolute;bottom:0;left:0;right:0;height:3px;}
 /* بادج البانوراما */
-.gal-pano-badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#00c5ff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid rgba(0,197,255,.4);}
+.gal-pano-badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:var(--accent);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid var(--accent);}
 .gal-filter{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
 .gal-filter select,.gal-filter input{padding:5px 8px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:SuisseIntl,sans-serif;font-size:12px;}
 .gal-count{font-size:12px;color:var(--text3);margin-right:auto;}
@@ -592,30 +596,16 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 
 <!-- ═══ HEADER ═══ -->
 <header>
-  <div class="h-brand">
-    <div class="h-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 255 249.48" width="32" height="32">
-        <defs><style>.rcl{fill:#1a1a1a;}.rcg{fill:#7d7150;}</style></defs>
-        <rect class="rcl" x="171.33" y="87.65" width="6.74" height="6.74"/>
-        <rect class="rcl" x="184.82" y="87.65" width="6.74" height="6.74"/>
-        <path class="rcl" d="M157.84,148.33h26.97v6.75h-13.49s0,33.72,0,33.72h20.23s0-87.66,0-87.66h-20.23s0,33.71,0,33.71h13.49v6.75h-20.23v-53.95s-6.75,0-6.75,0v60.68ZM184.82,161.82v20.23h-6.74v-20.23h6.74ZM178.08,128.11v-20.23h6.74v20.23h-6.74Z"/>
-        <rect class="rcl" x="90.41" y="74.16" width="6.74" height="6.74"/>
-        <rect class="rcl" x="90.41" y="60.68" width="6.74" height="6.74"/>
-        <path class="rcl" d="M103.9,80.9h33.72s0-13.48,0-13.48h6.74v20.23h-53.95s0,6.74,0,6.74h60.7s0-26.97,0-26.97h6.74v13.48s33.72,0,33.72,0v-20.23s-87.67,0-87.67,0v20.23ZM184.82,67.42v6.75h-20.23v-6.75h20.23ZM130.87,67.42v6.75h-20.23v-6.75h20.23Z"/>
-        <rect class="rcl" x="76.93" y="155.08" width="6.74" height="6.74"/>
-        <rect class="rcl" x="63.44" y="155.08" width="6.74" height="6.74"/>
-        <path class="rcl" d="M63.44,148.33h20.23s0-33.71,0-33.71h-13.49v-6.75h20.23v53.95s6.75,0,6.75,0v-60.68s-26.97,0-26.97,0v-6.75h13.49s0-33.72,0-33.72h-20.23s0,87.66,0,87.66ZM76.92,121.36v20.23h-6.74v-20.23h6.74ZM76.92,67.42v20.23h-6.74v-20.23h6.74Z"/>
-        <rect class="rcl" x="157.85" y="168.57" width="6.74" height="6.74"/>
-        <rect class="rcl" x="157.85" y="182.06" width="6.74" height="6.74"/>
-        <path class="rcl" d="M103.9,182.06h-6.74v-13.48s-33.72,0-33.72,0v20.23s87.67,0,87.67,0v-20.23s-33.72,0-33.72,0v13.48h-6.74v-20.23h53.95s0-6.74,0-6.74h-60.7s0,26.97,0,26.97ZM70.18,182.06v-6.75h20.23v6.75h-20.23ZM144.36,175.31v6.75h-20.23v-6.75h20.23Z"/>
-        <path class="rcg" d="M136.12,116.78c.67,1.4,1.05,2.96,1.22,4.43-1.63-2.11-3.62-3.97-5.73-5.37.18.24.36.48.52.74,1.74,2.82,1.44,6.56.44,9.59-.63-2.85-1.71-5.62-3.12-8-.32-.54-.66-1.08-1.04-1.6l.51,12.75c0,.45-.53,1.26-1.41,1.26s-1.41-.81-1.41-1.26l.5-12.73c-.37.52-.72,1.05-1.03,1.59-1.41,2.38-2.49,5.15-3.12,8-1-3.02-1.31-6.76.44-9.59.16-.26.33-.51.52-.74-2.11,1.4-4.1,3.26-5.73,5.37.33-2.93,1.52-6.24,4.14-7.9.88-.55,1.81-.91,2.79-1.11,0-.06,0-.03,0-.1-.56.03-1.12.09-1.68.18-2.43.37-4.79,1.07-7.03,2.12,1.63-2.5,4.24-4.37,6.68-4.7.39-.05.81-.07,1.22-.05-1.47-.74-3.06-1.37-4.7-1.8,2.23-.59,4.64-.47,6.74.46.61-2.58,1.7-4.1,1.7-4.1,0,0,1.09,1.52,1.7,4.1,2.08-.93,4.5-1.05,6.74-.46-1.65.44-3.23,1.06-4.7,1.8.41-.02.82,0,1.21.05,1.23.16,2.49.71,3.64,1.53,1.17.82,2.23,1.92,3.04,3.16-2.24-1.05-4.59-1.75-7.03-2.12-.56-.09-1.12-.14-1.68-.18,0,.07,0,.04,0,.1.97.2,1.91.56,2.79,1.11,1.32.83,2.26,2.08,2.93,3.48"/>
-        <path class="rcg" d="M151.09,125.59c-2.6-.29-5.32.25-7.73,1.72l-13.69,8.37,5.49,3.35.76-1.25s-.04-.02-.06-.03c-.61-.38-.81-1.18-.43-1.79.38-.61,1.17-.81,1.79-.43.61.37.81,1.17.43,1.79l-1.44,2.35.73.45,1.64,1c.55.34,1.21.37,1.76.13.03.29-.02.59-.13.87-.04.1-.09.2-.15.3-.55.91-1.75,1.2-2.67.64l-2.36-1.44-.76,1.25s.03.02.05.03c.61.38.81,1.17.44,1.79-.38.61-1.18.81-1.79.44-.61-.38-.81-1.18-.43-1.8l1.45-2.36-6.48-3.96-6.48,3.96,1.45,2.36c.37.61.18,1.42-.44,1.8-.61.37-1.41.18-1.79-.44-.38-.61-.19-1.41.43-1.79.02,0,.04-.03.06-.03l-.76-1.24-2.36,1.44c-.92.56-2.11.27-2.67-.64-.06-.1-.11-.2-.15-.3-.11-.28-.15-.58-.13-.87.56.24,1.22.21,1.77-.13l1.63-1,.74-.45-1.45-2.35c-.38-.61-.18-1.41.44-1.79.61-.38,1.41-.19,1.79.43.38.61.19,1.42-.43,1.79-.02,0-.03.03-.06.03l.76,1.25,5.49-3.35-13.69-8.37c-2.41-1.47-5.13-2.01-7.73-1.72,2.59-1.76,6.06-1.96,8.91-.22l14.68,8.97,14.68-8.97c2.84-1.74,6.33-1.54,8.91.22"/>
-      </svg>
-    </div>
-    <div>
-      <div class="h-title">DRconsultancy</div>
-      <div class="h-sub">تحديث تنظيمات اشتراطات البناء</div>
-    </div>
+  <div class="h-brand" style="gap:12px;">
+    <!-- RCMC logo — مفرغة بدون خلفية -->
+    <img src="im/RCMC_BM ( Horizontal )-01.png" alt="RCMC"
+         style="height:40px;display:block;flex-shrink:0;
+                mix-blend-mode:multiply;
+                filter:drop-shadow(0 1px 4px rgba(0,0,0,.18));"/>
+    <!-- DR Consultancy SVG — مفرغ بدون خلفية -->
+    <img src="im/logo-B1LG2xQ9.svg" alt="DR Consultancy"
+         style="height:36px;width:auto;display:block;flex-shrink:0;
+                filter:drop-shadow(0 1px 3px rgba(0,0,0,.25));"/>
   </div>
 
   <div class="kpi-strip">
@@ -709,36 +699,39 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 
 <!-- ═══ LOGIN OVERLAY ═══ -->
 <div id="login-ov" style="display:none;position:fixed;inset:0;z-index:999999;
-     background:linear-gradient(160deg,#f0ebe0,#e8e0d0);
+     background:url('im/20260424_182901.jpg') center/cover no-repeat;
      align-items:center;justify-content:center;font-family:SuisseIntl,sans-serif">
-  <div style="background:#ffffff;border:1px solid #e2dbd0;border-radius:20px;
+  <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(26,18,8,.82),rgba(13,10,5,.90));pointer-events:none;"></div>
+  <div style="position:relative;background:rgba(255,255,255,0.96);border:1px solid #e2dbd0;border-radius:20px;
               padding:36px 32px;width:100%;max-width:360px;text-align:center;
               box-shadow:0 8px 40px rgba(125,113,80,0.15)">
-    <div style="margin-bottom:10px;display:flex;justify-content:center;">
-      <div style="background:#f5f0e8;border-radius:10px;padding:6px;display:inline-flex;">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 255 249.48" width="48" height="48">
-          <defs><style>.rcl{fill:#1a1a1a;}.rcg{fill:#7d7150;}</style></defs>
-          <rect x="171.33" y="87.65" width="6.74" height="6.74"/>
-          <rect x="184.82" y="87.65" width="6.74" height="6.74"/>
-          <path d="M157.84,148.33h26.97v6.75h-13.49s0,33.72,0,33.72h20.23s0-87.66,0-87.66h-20.23s0,33.71,0,33.71h13.49v6.75h-20.23v-53.95s-6.75,0-6.75,0v60.68ZM184.82,161.82v20.23h-6.74v-20.23h6.74ZM178.08,128.11v-20.23h6.74v20.23h-6.74Z"/>
-          <rect x="90.41" y="74.16" width="6.74" height="6.74"/>
-          <rect x="90.41" y="60.68" width="6.74" height="6.74"/>
-          <path d="M103.9,80.9h33.72s0-13.48,0-13.48h6.74v20.23h-53.95s0,6.74,0,6.74h60.7s0-26.97,0-26.97h6.74v13.48s33.72,0,33.72,0v-20.23s-87.67,0-87.67,0v20.23ZM184.82,67.42v6.75h-20.23v-6.75h20.23ZM130.87,67.42v6.75h-20.23v-6.75h20.23Z"/>
-          <rect x="76.93" y="155.08" width="6.74" height="6.74"/>
-          <rect x="63.44" y="155.08" width="6.74" height="6.74"/>
-          <path d="M63.44,148.33h20.23s0-33.71,0-33.71h-13.49v-6.75h20.23v53.95s6.75,0,6.75,0v-60.68s-26.97,0-26.97,0v-6.75h13.49s0-33.72,0-33.72h-20.23s0,87.66,0,87.66ZM76.92,121.36v20.23h-6.74v-20.23h6.74ZM76.92,67.42v20.23h-6.74v-20.23h6.74Z"/>
-          <rect x="157.85" y="168.57" width="6.74" height="6.74"/>
-          <rect x="157.85" y="182.06" width="6.74" height="6.74"/>
-          <path d="M103.9,182.06h-6.74v-13.48s-33.72,0-33.72,0v20.23s87.67,0,87.67,0v-20.23s-33.72,0-33.72,0v13.48h-6.74v-20.23h53.95s0-6.74,0-6.74h-60.7s0,26.97,0,26.97ZM70.18,182.06v-6.75h20.23v6.75h-20.23ZM144.36,175.31v6.75h-20.23v-6.75h20.23Z"/>
-          <g>
-            <path class="rcg" d="M136.12,116.78c.67,1.4,1.05,2.96,1.22,4.43-1.63-2.11-3.62-3.97-5.73-5.37.18.24.36.48.52.74,1.74,2.82,1.44,6.56.44,9.59-.63-2.85-1.71-5.62-3.12-8-.32-.54-.66-1.08-1.04-1.6l.51,12.75c0,.45-.53,1.26-1.41,1.26s-1.41-.81-1.41-1.26l.5-12.73c-.37.52-.72,1.05-1.03,1.59-1.41,2.38-2.49,5.15-3.12,8-1-3.02-1.31-6.76.44-9.59.16-.26.33-.51.52-.74-2.11,1.4-4.1,3.26-5.73,5.37.33-2.93,1.52-6.24,4.14-7.9.88-.55,1.81-.91,2.79-1.11,0-.06,0-.03,0-.1-.56.03-1.12.09-1.68.18-2.43.37-4.79,1.07-7.03,2.12,1.63-2.5,4.24-4.37,6.68-4.7.39-.05.81-.07,1.22-.05-1.47-.74-3.06-1.37-4.7-1.8,2.23-.59,4.64-.47,6.74.46.61-2.58,1.7-4.1,1.7-4.1,0,0,1.09,1.52,1.7,4.1,2.08-.93,4.5-1.05,6.74-.46-1.65.44-3.23,1.06-4.7,1.8.41-.02.82,0,1.21.05,1.23.16,2.49.71,3.64,1.53,1.17.82,2.23,1.92,3.04,3.16-2.24-1.05-4.59-1.75-7.03-2.12-.56-.09-1.12-.14-1.68-.18,0,.07,0,.04,0,.1.97.2,1.91.56,2.79,1.11,1.32.83,2.26,2.08,2.93,3.48"/>
-            <path class="rcg" d="M151.09,125.59c-2.6-.29-5.32.25-7.73,1.72l-13.69,8.37,5.49,3.35.76-1.25s-.04-.02-.06-.03c-.61-.38-.81-1.18-.43-1.79.38-.61,1.17-.81,1.79-.43.61.37.81,1.17.43,1.79l-1.44,2.35.73.45,1.64,1c.55.34,1.21.37,1.76.13.03.29-.02.59-.13.87-.04.1-.09.2-.15.3-.55.91-1.75,1.2-2.67.64l-2.36-1.44-.76,1.25s.03.02.05.03c.61.38.81,1.17.44,1.79-.38.61-1.18.81-1.79.44-.61-.38-.81-1.18-.43-1.8l1.45-2.36-6.48-3.96-6.48,3.96,1.45,2.36c.37.61.18,1.42-.44,1.8-.61.37-1.41.18-1.79-.44-.38-.61-.19-1.41.43-1.79.02,0,.04-.03.06-.03l-.76-1.24-2.36,1.44c-.92.56-2.11.27-2.67-.64-.06-.1-.11-.2-.15-.3-.11-.28-.15-.58-.13-.87.56.24,1.22.21,1.77-.13l1.63-1,.74-.45-1.45-2.35c-.38-.61-.18-1.41.44-1.79.61-.38,1.41-.19,1.79.43.38.61.19,1.42-.43,1.79-.02,0-.03.03-.06.03l.76,1.25,5.49-3.35-13.69-8.37c-2.41-1.47-5.13-2.01-7.73-1.72,2.59-1.76,6.06-1.96,8.91-.22l14.68,8.97,14.68-8.97c2.84-1.74,6.33-1.54,8.91.22"/>
-          </g>
-        </svg>
+    <!-- RCMC logo — top-right corner -->
+    <div style="position:absolute;top:-18px;right:12px;">
+      <div style="background:rgba(255,255,255,0.95);border-radius:8px;padding:5px 8px;
+                  box-shadow:0 4px 14px rgba(125,113,80,.22);border:1px solid rgba(125,113,80,.15);">
+        <img src="im/RCMC_BM ( Horizontal )-01.png" alt="RCMC"
+             style="width:130px;display:block;"/>
       </div>
     </div>
-    <div style="font-size:20px;font-weight:900;color:#1a1714;margin-bottom:4px">DRconsultancy</div>
-    <div style="font-size:12px;color:#7d7150;margin-bottom:28px">تحديث تنظيمات اشتراطات البناء</div>
+
+    <!-- Project title -->
+    <div style="font-size:15px;font-weight:700;color:#3d3320;letter-spacing:0.3px;line-height:3.4;margin-bottom:3px;direction:rtl;">
+     تحديث تنظيمات واشتراطات البناء
+    </div>
+    <div style="font-size:12px;color:#6b5e40;margin-bottom:5px;direction:rtl;">بمكة المكرمة</div>
+    <div style="font-size:11px;color:#7d7150;font-weight:600;letter-spacing:1.5px;margin-bottom:10px;">PRJ - 00852</div>
+    <!-- Labeled box -->
+    <div style="display:inline-block;border:1.5px solid #7d7150;border-radius:7px;
+                padding:6px 18px;background:rgba(125,113,80,0.06);margin-bottom:18px;direction:rtl;">
+      <span style="font-size:12px;font-weight:700;color:#7d7150;letter-spacing:0.5px;">آلية الرصد والتحليل</span>
+    </div>
+        <!-- DRconsultancy logo banner -->
+    <div style="display:flex;justify-content:center;margin-bottom:14px;margin-top:8px;">
+      <img src="im/logo-B1LG2xQ9.svg" alt="D.R.Consultancy"
+           style="width:200px;height:auto;display:block;"/>
+    </div>
+    <!-- divider -->
+    <div style="width:48px;height:1px;background:rgba(125,113,80,.2);margin:0 auto 16px;"></div>
     <input id="login-email" type="email" placeholder="البريد الإلكتروني"
       style="width:100%;padding:12px 14px;background:#faf8f4;border:1px solid #e2dbd0;
              border-radius:10px;color:#1a1714;font-family:SuisseIntl,sans-serif;font-size:14px;
@@ -851,7 +844,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
     <!-- Target Progress -->
     <div class="side-sect" id="target-sect" style="padding-bottom:12px;">
       <div class="sect-head" style="margin-bottom:10px;">
-        <span>🎯 هدف المشروع</span>
+        <span> هدف المشروع</span>
         <button onclick="toggleTargetEdit()" id="target-edit-btn"
           style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:SuisseIntl,sans-serif;">تعديل</button>
       </div>
@@ -864,7 +857,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
         </div>
         <!-- شريط التقدم الكلي -->
         <div style="background:var(--panel2);border-radius:6px;height:10px;overflow:hidden;margin-bottom:10px;">
-          <div id="target-bar" style="height:100%;border-radius:6px;background:linear-gradient(90deg,#0078d4,#00c5ff);transition:width .6s ease;width:0%;"></div>
+          <div id="target-bar" style="height:100%;border-radius:6px;background:linear-gradient(90deg,#5a4e30,#7d7150);transition:width .6s ease;width:0%;"></div>
         </div>
         <!-- تقدم كل مساح -->
         <div id="target-srv-bars" style="display:flex;flex-direction:column;gap:5px;"></div>
@@ -878,7 +871,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
           <input id="target-input" type="number" min="1" placeholder="مثال: 1000"
             style="flex:1;padding:7px 10px;background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:SuisseIntl,sans-serif;font-size:13px;"/>
           <button onclick="saveTarget()"
-            style="padding:7px 12px;background:linear-gradient(135deg,#0078d4,#00c5ff);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;font-family:SuisseIntl,sans-serif;">حفظ</button>
+            style="padding:7px 12px;background:linear-gradient(135deg,#5a4e30,#7d7150);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;font-family:SuisseIntl,sans-serif;">حفظ</button>
         </div>
         <button onclick="resetTarget()"
           style="margin-top:8px;width:100%;padding:6px;background:transparent;border:1px solid rgba(244,67,54,.4);border-radius:7px;color:#f44336;cursor:pointer;font-size:11px;font-family:SuisseIntl,sans-serif;">
@@ -1000,7 +993,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
 <div id="poly-hint">
   <span id="poly-hint-txt">اضغط لإضافة نقاط</span>
   &nbsp;
-  <button onclick="polyFinish()" style="background:#00c5ff;border:none;border-radius:12px;padding:3px 12px;cursor:pointer;font-family:SuisseIntl,sans-serif;font-weight:700;font-size:12px;">✓ إنهاء</button>
+  <button onclick="polyFinish()" style="background:#7d7150;color:#fff;border:none;border-radius:12px;padding:3px 12px;cursor:pointer;font-family:SuisseIntl,sans-serif;font-weight:700;font-size:12px;">✓ إنهاء</button>
   <button onclick="stopPolyMode()" style="background:rgba(255,255,255,.2);border:none;border-radius:12px;padding:3px 10px;cursor:pointer;font-family:SuisseIntl,sans-serif;font-size:12px;color:#000;">✕</button>
 </div>
 
@@ -1025,14 +1018,14 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
         <canvas id="chart-daily" height="120"></canvas>
       </div>
       <!-- Chart 2: Building Types -->
-      <div style="background:var(--panel2);border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:var(--panel2);border-radius:10px;padding:16px;display:grid;grid-template-columns:3fr 2fr;gap:20px;align-items:center;">
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">🏢 توزيع أنواع المباني</div>
-          <canvas id="chart-types" height="200"></canvas>
+          <canvas id="chart-types" height="260"></canvas>
         </div>
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">🏗️ توزيع الأدوار</div>
-          <canvas id="chart-floors" height="200"></canvas>
+          <canvas id="chart-floors" height="260"></canvas>
         </div>
       </div>
       <!-- Chart 3: Surveyors -->
@@ -1095,11 +1088,27 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
       </div>
 
       <div class="tog-row" onclick="togPhotos()">
-        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation();dlPh=this.checked;"/>
+        <input type="checkbox" id="dl-ph-chk" onclick="event.stopPropagation();dlPh=this.checked;togPhotosOpts();"/>
         <div>
           <div class="tog-tl">📷 تضمين الصور (ZIP)</div>
           <div class="tog-td">ملف مضغوط يحتوي البيانات + الصور</div>
         </div>
+      </div>
+      <div id="photo-mode-opts" style="display:none;margin:4px 0 4px 0;padding:10px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);gap:10px;flex-direction:column;">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:6px;">
+          <input type="radio" name="dl-photo-mode" value="folder" id="pm-folder" checked style="margin-top:3px;accent-color:var(--accent);">
+          <div>
+            <div style="font-weight:600;font-size:13px;color:var(--text1);">📁 الصور في مجلد منفصل</div>
+            <div style="font-size:11px;color:var(--text3);">Excel بالبيانات + اسم الصورة — الصور في فولدر مستقل (أخف)</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="radio" name="dl-photo-mode" value="excel" id="pm-excel" style="margin-top:3px;accent-color:var(--accent);">
+          <div>
+            <div style="font-weight:600;font-size:13px;color:var(--text1);">📊 الصور داخل Excel</div>
+            <div style="font-size:11px;color:var(--text3);">صور مصغرة مدمجة في الخلايا — ملف أثقل</div>
+          </div>
+        </label>
       </div>
 
       <button class="dl-btn" id="dl-btn" onclick="dlBtnClick()">📥 تحميل الآن</button>
@@ -1140,10 +1149,10 @@ function esc(s) {
 
 // Maps English surveyor login names → Arabic display names
 const NAME_MAP = {
-  'Adel': 'عادل',
-  'Faisal Bakasri': 'فيصل بكاسري',
-  'Monsef': 'منصف',
-  'Shokry': 'شوكري',
+  'Adel': 'م.عادل',
+  'Faisal Bakasri': 'م. فيصل',
+  'Monsef': 'م.منصف',
+  'Shokry': 'م.شوكري',
   'aMasah': 'أماسة'
 };
 function displayName(n) { return NAME_MAP[n] || n; }
@@ -1589,7 +1598,7 @@ function renderMap() {
       ? `${panoBadge}<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')" style="width:100%;border-radius:4px;margin-bottom:6px;cursor:zoom-in;display:block"/>`
       : '';
     const cmpBtn = r.thumbnail
-      ? `<button onclick="openCmp(${i})" style="margin-top:4px;padding:4px 10px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:11px;width:100%;font-family:SuisseIntl,sans-serif;font-weight:700">🛰️ مقارنة</button>`
+      ? `<button onclick="openCmp(${i})" style="margin-top:4px;padding:4px 10px;background:#7d7150;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:11px;width:100%;font-family:SuisseIntl,sans-serif;font-weight:700">🛰️ مقارنة</button>`
       : '';
     const isSelected = selectedIds.has(r.id);
     const dateColor = getDateColor(r.captured_at||'');
@@ -1598,12 +1607,12 @@ function renderMap() {
       : mkIcon(r.building_type);
     const marker = L.marker([r.latitude,r.longitude],{icon:markerIcon});
     if(isSelected) marker.getElement && marker.once('add',()=>marker.getElement()?.classList.add('marker-selected'));
-    marker.bindPopup(`<div style="font-family:SuisseIntl,sans-serif;direction:rtl;min-width:210px;font-size:12px;color:#eee">
+    marker.bindPopup(`<div style="font-family:SuisseIntl,sans-serif;direction:rtl;min-width:210px;font-size:12px;color:var(--text)">
         ${img}
-        <b style="color:#00c5ff;font-size:13px">${r.building_type||'غير محدد'}</b><br>
+        <b style="color:var(--accent);font-size:13px">${r.building_type||'غير محدد'}</b><br>
         أدوار: ${r.floors||'—'} | باحث: ${displayName(r.surveyor_name||'—')}<br>
-        <small style="color:#888">${r.captured_at?.substring(0,16).replace('T',' ')||''}</small><br>
-        <small style="color:#666">${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}</small>
+        <small style="color:var(--text3)">${r.captured_at?.substring(0,16).replace('T',' ')||''}</small><br>
+        <small style="color:var(--text3)">${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}</small>
         ${cmpBtn}
       </div>`)
       .on('popupopen', () => highlightRow(r.id))
@@ -1966,9 +1975,14 @@ function destroyChart(id){
 }
 function buildAllCharts(){
   const isDark=document.documentElement.getAttribute('data-theme')!=='light';
-  const textColor=isDark?'#b0b0b0':'#555';
-  const gridColor=isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)';
-  const accent='#00c5ff';
+  const textColor=isDark?'#c8b88a':'#5a4520';
+  const gridColor=isDark?'rgba(200,168,75,0.08)':'rgba(125,113,80,0.10)';
+  const accent='#c8a84b';
+  // Brand palette — gold gradient
+  const brandPalette=[
+    '#c8a84b','#a87d3a','#e8d4a0','#7d6033',
+    '#d4b070','#5a4520','#f0e2b8','#3d3320'
+  ];
 
   // ── Chart 1: Daily (last 30 days) ──
   destroyChart('daily');
@@ -1980,7 +1994,7 @@ function buildAllCharts(){
   const dailyData=Object.values(days);
   _chartInstances['daily']=new Chart(document.getElementById('chart-daily'),{
     type:'line',
-    data:{labels:dailyLabels,datasets:[{label:'سجل',data:dailyData,borderColor:accent,backgroundColor:'rgba(0,197,255,0.1)',fill:true,tension:0.4,pointRadius:3}]},
+    data:{labels:dailyLabels,datasets:[{label:'سجل',data:dailyData,borderColor:'#c8a84b',backgroundColor:'rgba(200,168,75,0.12)',fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:'#c8a84b'}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor,maxTicksLimit:10},grid:{color:gridColor}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
   });
 
@@ -1989,11 +2003,10 @@ function buildAllCharts(){
   const typeCnt={};
   filtered.forEach(r=>{const t=r.building_type||'غير محدد';typeCnt[t]=(typeCnt[t]||0)+1;});
   const typeEntries=Object.entries(typeCnt).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const typeColors=['#00c5ff','#71c96e','#ff9800','#e91e63','#9c27b0','#3f51b5','#009688','#ff5722'];
   _chartInstances['types']=new Chart(document.getElementById('chart-types'),{
     type:'doughnut',
-    data:{labels:typeEntries.map(e=>e[0]),datasets:[{data:typeEntries.map(e=>e[1]),backgroundColor:typeColors,borderWidth:2,borderColor:'rgba(0,0,0,0.3)'}]},
-    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:textColor,font:{size:11},padding:8}}}}
+    data:{labels:typeEntries.map(e=>e[0]),datasets:[{data:typeEntries.map(e=>e[1]),backgroundColor:brandPalette,borderWidth:2,borderColor:isDark?'rgba(30,25,15,0.6)':'rgba(255,255,255,0.7)',hoverOffset:6}]},
+    options:{responsive:true,cutout:'58%',plugins:{legend:{position:'bottom',labels:{color:textColor,font:{size:11},padding:10,boxWidth:12}}}}
   });
 
   // ── Chart 3: Floors Distribution ──
@@ -2003,7 +2016,7 @@ function buildAllCharts(){
   const floorEntries=Object.entries(floorCnt).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
   _chartInstances['floors']=new Chart(document.getElementById('chart-floors'),{
     type:'bar',
-    data:{labels:floorEntries.map(e=>e[0]),datasets:[{label:'عدد',data:floorEntries.map(e=>e[1]),backgroundColor:'rgba(113,201,110,0.7)',borderColor:'#71c96e',borderWidth:1,borderRadius:4}]},
+    data:{labels:floorEntries.map(e=>e[0]),datasets:[{label:'عدد',data:floorEntries.map(e=>e[1]),backgroundColor:'rgba(168,125,58,0.75)',borderColor:'#a87d3a',borderWidth:1,borderRadius:5}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor},grid:{display:false}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
   });
 
@@ -2014,7 +2027,7 @@ function buildAllCharts(){
   const srvEntries=Object.entries(srvCnt).sort((a,b)=>b[1]-a[1]).slice(0,15);
   _chartInstances['surveyors']=new Chart(document.getElementById('chart-surveyors'),{
     type:'bar',
-    data:{labels:srvEntries.map(e=>displayName(e[0])),datasets:[{label:'سجل',data:srvEntries.map(e=>e[1]),backgroundColor:'rgba(0,197,255,0.7)',borderColor:accent,borderWidth:1,borderRadius:4}]},
+    data:{labels:srvEntries.map(e=>displayName(e[0])),datasets:[{label:'سجل',data:srvEntries.map(e=>e[1]),backgroundColor:'rgba(200,168,75,0.75)',borderColor:'#c8a84b',borderWidth:1,borderRadius:4}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor,maxRotation:30},grid:{display:false}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
   });
 
@@ -2036,7 +2049,7 @@ function buildAllCharts(){
   });
   _chartInstances['weekly']=new Chart(document.getElementById('chart-weekly'),{
     type:'bar',
-    data:{labels:wkKeys.map(d=>d.slice(5)),datasets:[{label:'سجل',data:Object.values(weeks),backgroundColor:'rgba(255,152,0,0.7)',borderColor:'#ff9800',borderWidth:1,borderRadius:4}]},
+    data:{labels:wkKeys.map(d=>d.slice(5)),datasets:[{label:'سجل',data:Object.values(weeks),backgroundColor:'rgba(125,96,51,0.75)',borderColor:'#7d6033',borderWidth:1,borderRadius:4}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:textColor},grid:{display:false}},y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true}}}
   });
 }
@@ -2497,12 +2510,12 @@ function renderAttr(){
   document.getElementById('attr-body').innerHTML=d.map((r,i)=>{
     const mi=filtered.indexOf(r);
     const th=r.thumbnail?`<img src="data:image/jpeg;base64,${r.thumbnail}" onclick="openLbById('${r.id}')">` :'—';
-    const cb=r.thumbnail?`<button onclick="openCmp(${mi})" style="padding:2px 8px;background:#00c5ff;color:#000;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🛰️</button>`:'—';
+    const cb=r.thumbnail?`<button onclick="openCmp(${mi})" style="padding:2px 8px;background:#7d7150;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🛰️</button>`:'—';
     const delBtn= currentIsAdmin
       ? `<button onclick="confirmDeleteById('${r.id}')" style="padding:2px 8px;background:#f44336;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">🗑️</button>`
       : `<span style="color:var(--text3);font-size:10px;">—</span>`;
     const editBtn= currentIsAdmin
-      ? `<button onclick="editRow('${r.id}')" style="padding:2px 8px;background:rgba(0,197,255,0.15);color:#00c5ff;border:1px solid rgba(0,197,255,0.3);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">✏️</button>`
+      ? `<button onclick="editRow('${r.id}')" style="padding:2px 8px;background:rgba(125,113,80,0.12);color:#7d7150;border:1px solid rgba(125,113,80,0.35);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700">✏️</button>`
       : '';
     return `<tr data-id="${r.id}" onclick="highlightRow('${r.id}')">
       <td class="num">${i+1}</td>
@@ -2609,14 +2622,14 @@ function openDl(){
 }
 function closeDl(){
   document.getElementById('dl-ov').classList.remove('open');
-  _dlBatchState=null;
   const btn=document.getElementById('dl-btn');
   btn.textContent='📥 تحميل الآن';
   btn.style.background='';
   btn.disabled=false;
 }
 function selFmt(f){dlFmt=f;['xlsx','csv','sqlite'].forEach(x=>document.getElementById('fmt-'+x).classList.toggle('sel',x===f));}
-function togPhotos(){const c=document.getElementById('dl-ph-chk');c.checked=!c.checked;dlPh=c.checked;}
+function togPhotos(){const c=document.getElementById('dl-ph-chk');c.checked=!c.checked;dlPh=c.checked;togPhotosOpts();}
+function togPhotosOpts(){document.getElementById('photo-mode-opts').style.display=dlPh?'flex':'none';}
 function setProg(cur,tot,msg){
   document.getElementById('dl-prog-fl').style.width=(tot?Math.round(cur/tot*100):0)+'%';
   document.getElementById('dl-prog-txt').textContent=msg||`${cur}/${tot}`;
@@ -2694,102 +2707,69 @@ async function dlSQLite(){
   saveAs(new Blob([db.export()],{type:'application/octet-stream'}),`gis_${new Date().toISOString().substring(0,10)}.db`);
   setProg(1,1,'✅ SQLite');
 }
-// متغيرات الـ batch
-let _dlBatchState=null;
-function dlBtnClick(){
-  if(_dlBatchState && _dlBatchState.curBatch < _dlBatchState.batches){
-    dlNextBatch();
-  } else {
-    startDl();
-  }
-}
+function dlBtnClick(){ startDl(); }
 async function dlZip(){
   const BATCH = 30;
   const allRecs = filtered.slice();
-  const tot = allRecs.length;
-  const batches = Math.ceil(tot/BATCH);
-
-  // جيب كل الـ photo_url مرة واحدة
-  setProg(0,tot,'جلب روابط الصور...');
   const withPhoto = allRecs.filter(r=>r.thumbnail);
-  // photoMap هيتملى lazily جوا كل batch عشان نقلل الضغط على DB
-  const photoMap = {};
+  const batches = Math.ceil(allRecs.length/BATCH);
+  const photoMode = document.querySelector('input[name="dl-photo-mode"]:checked')?.value || 'folder';
 
-  _dlBatchState = { allRecs, tot, batches, withPhoto, photoMap, curBatch:0, globalDone:0 };
-  await dlNextBatch();
-}
+  const masterZip = new JSZip();
+  const photosFolder = masterZip.folder('الصور');
+  const allImgCache = new Map();
+  let globalDone = 0;
 
-async function dlNextBatch(){
-  const s = _dlBatchState;
-  if(!s || s.curBatch >= s.batches) return;
+  // تحميل كل الدفعات تلقائياً بدون توقف
+  for(let b=0; b<batches; b++){
+    const chunk = allRecs.slice(b*BATCH,(b+1)*BATCH);
+    const chunkWithPhoto = chunk.filter(r=>r.thumbnail);
 
-  document.getElementById('dl-btn').disabled=true;
+    // جلب photo_url للدفعة
+    setProg(globalDone, withPhoto.length, `جلب روابط دفعة ${b+1}/${batches}...`);
+    const batchIds = chunkWithPhoto.map(r=>r.id).join(',');
+    const photoMap = {};
+    if(batchIds){
+      try{
+        const batchUrls = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${batchIds})`);
+        (batchUrls||[]).forEach(r=>{ photoMap[r.id]=r.photo_url; });
+      }catch(_){}
+    }
 
-  const b = s.curBatch;
-  const chunk = s.allRecs.slice(b*30, (b+1)*30);
-  const chunkWithPhoto = chunk.filter(r=>r.thumbnail);
-  const zip = new JSZip();
-  const pf = zip.folder('الصور');
-  const imgCache = new Map();
-
-  // جلب photo_url للدفعة الحالية فقط (30 سجل بدل كل السجلات)
-  setProg(s.globalDone, s.withPhoto.length, `جلب روابط دفعة ${b+1}/${s.batches}...`);
-  const batchIds = chunkWithPhoto.map(r=>r.id).join(',');
-  if(batchIds){
-    try{
-      const batchUrls = await sbGet(`/rest/v1/surveys?select=id,photo_url,photo_name&id=in.(${batchIds})`);
-      (batchUrls||[]).forEach(r=>{ s.photoMap[r.id]=r.photo_url; });
-    }catch(_){}
+    // تحميل صور الدفعة وإضافتها للـ ZIP الرئيسي
+    for(let i=0;i<chunkWithPhoto.length;i++){
+      const r=chunkWithPhoto[i];
+      globalDone++;
+      setProg(globalDone, withPhoto.length, `تحميل صورة ${globalDone}/${withPhoto.length} — دفعة ${b+1}/${batches}`);
+      const url=photoMap[r.id];
+      if(!url) continue;
+      try{
+        const blob=await(await fetch(url)).blob();
+        const fname=r.photo_name||(r.id+'.jpg');
+        photosFolder.file(fname, blob);
+        if(photoMode==='excel'){
+          const b64=await blobToB64(blob);
+          const ext=url.toLowerCase().includes('.png')?'png':'jpeg';
+          allImgCache.set(r.id,{b64,blob,ext});
+        }
+      }catch(_){}
+    }
+    setProg(globalDone, withPhoto.length, `✅ دفعة ${b+1}/${batches} — جاري المتابعة...`);
   }
 
-  // تحميل الصور الأصلية للدفعة الحالية
-  for(let i=0;i<chunkWithPhoto.length;i++){
-    const r=chunkWithPhoto[i];
-    s.globalDone++;
-    setProg(s.globalDone, s.withPhoto.length, `تحميل صورة ${s.globalDone}/${s.withPhoto.length} — دفعة ${b+1}/${s.batches}`);
-    const url=s.photoMap[r.id];
-    if(!url) continue;
-    try{
-      const blob=await(await fetch(url)).blob();
-      const b64=await blobToB64(blob);
-      const ext=url.toLowerCase().includes('.png')?'png':'jpeg';
-      imgCache.set(r.id,{b64,blob,ext});
-      const fname=r.photo_name||(r.id+'.jpg');
-      pf.file(fname,blob);
-    }catch(_){}
-  }
-
-  // بناء Excel بالصور مدمجة
-  setProg(s.globalDone, s.withPhoto.length, `بناء Excel دفعة ${b+1}/${s.batches}...`);
+  // بناء Excel واحد بكل السجلات
+  setProg(withPhoto.length, withPhoto.length, 'بناء ملف Excel...');
   const prevFiltered=filtered;
-  filtered=chunk;
-  const wb=await buildXLS(imgCache);
+  filtered=allRecs;
+  const wb=await buildXLS(photoMode==='excel'?allImgCache:null);
   filtered=prevFiltered;
-  zip.file(`data_part${b+1}of${s.batches}.xlsx`, await wb.xlsx.writeBuffer());
+  masterZip.file(`data_${new Date().toISOString().substring(0,10)}.xlsx`, await wb.xlsx.writeBuffer());
 
-  setProg(s.globalDone, s.withPhoto.length, `ضغط دفعة ${b+1}/${s.batches}...`);
-  const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
-  const suffix=s.batches>1?`_part${b+1}of${s.batches}`:'';
-  saveAs(zipBlob,`gis_backup${suffix}_${new Date().toISOString().substring(0,10)}.zip`);
-
-  imgCache.clear();
-  s.curBatch++;
-
-  if(s.curBatch < s.batches){
-    // تغيير نص الزرار للدفعة التالية
-    const btn=document.getElementById('dl-btn');
-    btn.textContent=`⏭ دفعة ${s.curBatch+1} من ${s.batches} — اضغط للتحميل`;
-    btn.style.background='linear-gradient(135deg,#e65100,#ff9800)';
-    btn.disabled=false;
-    setProg(s.globalDone, s.withPhoto.length, `✅ دفعة ${b+1} جاهزة — اضغط الزرار للدفعة التالية`);
-  } else {
-    setProg(1,1,`✅ اكتمل! ${s.batches} ملف ZIP`);
-    const btn=document.getElementById('dl-btn');
-    btn.textContent='📥 تحميل الآن';
-    btn.style.background='';
-    btn.disabled=false;
-    _dlBatchState=null;
-  }
+  // ضغط وحفظ ZIP واحد نهائي
+  setProg(withPhoto.length, withPhoto.length, 'ضغط الملف النهائي...');
+  const zipBlob=await masterZip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+  saveAs(zipBlob,`gis_backup_${new Date().toISOString().substring(0,10)}.zip`);
+  allImgCache.clear();
 }
 function downloadCSV(){dlCSV();}
 
@@ -2891,7 +2871,7 @@ async function dlSelected(){
   // progress bar مؤقت
   const pb=document.createElement('div');
   pb.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);padding:14px 24px;border-radius:14px;z-index:9999;min-width:300px;text-align:center;font-family:SuisseIntl,sans-serif;color:#fff;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,.5);';
-  pb.innerHTML='<div id="_spb_txt">جاري التجهيز...</div><div style="background:#333;border-radius:4px;margin-top:8px;height:7px"><div id="_spb_fl" style="background:#00c5ff;height:7px;border-radius:4px;width:0%;transition:width .3s"></div></div>';
+  pb.innerHTML='<div id="_spb_txt">جاري التجهيز...</div><div style="background:#333;border-radius:4px;margin-top:8px;height:7px"><div id="_spb_fl" style="background:#7d7150;height:7px;border-radius:4px;width:0%;transition:width .3s"></div></div>';
   document.body.appendChild(pb);
   const spProg=(cur,tot,msg)=>{
     const pct=tot?Math.round(cur/tot*100):0;
@@ -3003,12 +2983,12 @@ function renderTarget(){
   document.getElementById('target-pct').textContent = pct+'%';
 
   // لون الشريط حسب النسبة
-  const barColor = pct>=100?'#71c96e':pct>=75?'#00c5ff':pct>=50?'#0078d4':pct>=25?'#ff9800':'#f44336';
+  const barColor = pct>=100?'#71c96e':pct>=75?'#9a8c66':pct>=50?'#7d7150':pct>=25?'#b56a00':'#b52a2a';
   const bar = document.getElementById('target-bar');
   bar.style.width = pct+'%';
   bar.style.background = pct>=100
     ?'linear-gradient(90deg,#4CAF50,#71c96e)'
-    :'linear-gradient(90deg,#0078d4,'+barColor+')';
+    :'linear-gradient(90deg,#5a4e30,'+barColor+')';
 
   // تقدم كل مساح
   const srvCnt={};
@@ -3195,7 +3175,7 @@ function runDupScan(){
         ${sameType?'<span style="font-size:10px;background:rgba(255,152,0,.2);color:#ff9800;padding:2px 6px;border-radius:4px;">نفس النوع</span>':''}
         ${sameSrv?'<span style="font-size:10px;background:rgba(244,67,54,.2);color:#f44336;padding:2px 6px;border-radius:4px;">نفس الباحث</span>':''}
         <button onclick="flyToDup(${p.a.latitude},${p.a.longitude})"
-          style="margin-right:auto;padding:3px 10px;background:rgba(0,197,255,.15);color:#00c5ff;border:1px solid rgba(0,197,255,.3);border-radius:5px;cursor:pointer;font-size:11px;font-family:SuisseIntl,sans-serif;">🗺️ عرض على الخريطة</button>
+          style="margin-right:auto;padding:3px 10px;background:rgba(125,113,80,.12);color:#7d7150;border:1px solid rgba(125,113,80,.35);border-radius:5px;cursor:pointer;font-size:11px;font-family:SuisseIntl,sans-serif;">🗺️ عرض على الخريطة</button>
       </div>
       <div style="display:flex;gap:10px;">${card(p.a)}
         <div style="display:flex;align-items:center;font-size:20px;color:var(--text3);">⟷</div>
@@ -3245,14 +3225,14 @@ function showNotif(rec) {
     : '<div style="width:48px;height:48px;border-radius:6px;background:'+color+'22;border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏢</div>';
 
   const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;bottom:24px;left:24px;background:#1e2a3a;border:1px solid '+color+';border-radius:14px;padding:14px 16px;z-index:99999;display:flex;gap:12px;align-items:center;min-width:280px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.6);font-family:SuisseIntl,sans-serif;direction:rtl;animation:slideInLeft .3s ease;';
+  toast.style.cssText = 'position:fixed;bottom:24px;left:24px;background:var(--panel);border:1px solid '+color+';border-radius:14px;padding:14px 16px;z-index:99999;display:flex;gap:12px;align-items:center;min-width:280px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.18);font-family:SuisseIntl,sans-serif;direction:rtl;animation:slideInLeft .3s ease;';
   toast.innerHTML = thumb
     + '<div style="flex:1;min-width:0;">'
     + '<div style="font-size:11px;color:'+color+';font-weight:700;margin-bottom:2px;">📍 سجل جديد</div>'
-    + '<div style="font-size:13px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(rec.building_type||'غير محدد')+'</div>'
-    + '<div style="font-size:11px;color:#90a4ae;margin-top:2px;">'+esc(displayName(rec.surveyor_name||'مجهول'))+' — '+(rec.captured_at||'').slice(0,16).replace('T',' ')+'</div>'
+    + '<div style="font-size:13px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(rec.building_type||'غير محدد')+'</div>'
+    + '<div style="font-size:11px;color:var(--text2);margin-top:2px;">'+esc(displayName(rec.surveyor_name||'مجهول'))+' — '+(rec.captured_at||'').slice(0,16).replace('T',' ')+'</div>'
     + '</div>'
-    + '<button onclick="this.closest(\'div\').remove()" style="background:none;border:none;color:#607d9e;font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;">✕</button>';
+    + '<button onclick="this.closest(\'div\').remove()" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;">✕</button>';
 
   // لو فيه نوتيفيكيشن قديمة ارفعها شوية
   document.querySelectorAll('[data-notif]').forEach((el,i)=>{
@@ -3323,7 +3303,7 @@ checkAuth();
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
       <button onclick="document.getElementById('edit-ov').style.display='none'" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-family:SuisseIntl,sans-serif;">إلغاء</button>
-      <button id="edit-save-btn" onclick="saveEdit()" style="padding:8px 22px;border-radius:8px;border:none;background:#00c5ff;color:#000;cursor:pointer;font-family:SuisseIntl,sans-serif;font-size:13px;font-weight:700;">💾 حفظ</button>
+      <button id="edit-save-btn" onclick="saveEdit()" style="padding:8px 22px;border-radius:8px;border:none;background:#7d7150;color:#fff;cursor:pointer;font-family:SuisseIntl,sans-serif;font-size:13px;font-weight:700;">💾 حفظ</button>
     </div>
   </div>
 </div>
@@ -3400,7 +3380,7 @@ checkAuth();
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <div style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">
         <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">الخطة الحالية</div>
-        <div style="font-size:14px;font-weight:700;color:#00c5ff;">PRO</div>
+        <div style="font-size:14px;font-weight:700;color:#7d7150;">PRO</div>
         <div style="font-size:11px;color:var(--text3);">$25/شهر</div>
         <div style="margin-top:6px;font-size:11px;color:var(--text2);">DB: 8 GB | Storage: 100 GB<br>Egress: 250 GB</div>
       </div>
