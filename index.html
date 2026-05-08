@@ -360,6 +360,20 @@ header {
 .map-wrap  { flex:1; padding:10px; min-height:0; display:flex; flex-direction:column; }
 #map       { flex:1; border-radius:8px; border:1px solid var(--border); overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.4); }
 
+/* ── Map Print Overlay ── */
+#mp-overlay{display:none;position:absolute;inset:0;pointer-events:none;z-index:900;}
+@media print{
+  @page{margin:0;size:A4 landscape;}
+  *{visibility:hidden!important;}
+  #map{visibility:visible!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;border-radius:0!important;border:none!important;box-shadow:none!important;}
+  #map *{visibility:visible!important;}
+  #mp-overlay{display:block!important;visibility:visible!important;}
+  .mp-title{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.92);padding:8px 28px;border-radius:6px;font-size:17px;font-weight:700;font-family:Arial,sans-serif;color:#1a1a1a;border:1px solid #bbb;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  .mp-stats{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);padding:5px 18px;border-radius:4px;font-size:12px;font-family:Arial,sans-serif;color:#444;border:1px solid #ccc;}
+  .mp-north{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.9);border-radius:50%;width:58px;height:58px;display:flex!important;align-items:center;justify-content:center;border:1px solid #bbb;box-shadow:0 2px 6px rgba(0,0,0,.2);}
+  .mp-date{position:absolute;bottom:14px;right:14px;background:rgba(255,255,255,.88);padding:4px 12px;border-radius:4px;font-size:11px;font-family:Arial,sans-serif;color:#555;border:1px solid #ddd;}
+}
+
 /* ═══ ATTR PANEL (bottom) ═══ */
 .attr-panel {
   height:270px; background:var(--panel);
@@ -901,7 +915,7 @@ tbody td img { width:44px; height:33px; object-fit:cover; border-radius:3px; cur
   <!-- ── Map + Attr Panel ── -->
   <div class="map-area">
     <div class="map-wrap" style="position:relative">
-      <div id="map"></div>
+      <div id="map"><div id="mp-overlay"></div></div>
       <!-- فلتر التواريخ على الخريطة -->
       <div style="position:absolute;top:10px;left:50px;z-index:1000;display:flex;flex-direction:column;gap:6px;max-width:320px;">
         <div style="background:rgba(80,68,42,.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
@@ -2088,6 +2102,7 @@ function toggleExportMenu(e){
   d.style.left='auto';
   d.style.top=(rect.bottom+4)+'px';
   d.innerHTML=[
+    {icon:'🖼️',label:'تصدير الخريطة',sub:'صورة PNG / PDF',fn:'exportMapImage()'},
     {icon:'📄',label:'تصدير KML',sub:'Google Earth / Maps',fn:'exportKML()'},
     {icon:'🗺️',label:'تصدير GeoJSON',sub:'QGIS / ArcGIS',fn:'exportGeoJSON()'},
     {icon:'📊',label:'تصدير CSV',sub:'Excel / جداول',fn:'downloadCSV()'},
@@ -2208,6 +2223,58 @@ async function exportGeoJSON(){
     }
   }));
   saveAs(new Blob([JSON.stringify({type:'FeatureCollection',features},null,2)],{type:'application/json'}),`survey_${new Date().toISOString().slice(0,10)}.geojson`);
+}
+
+// ── Map Image Export ──────────────────────────────
+function exportMapImage(){
+  const dlg=document.createElement('div');
+  dlg.id='map-export-dlg';
+  dlg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999999;display:flex;align-items:center;justify-content:center;';
+  dlg.innerHTML=`
+    <div style="background:var(--panel);border-radius:14px;padding:24px;width:360px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,.6);">
+      <h3 style="margin:0 0 18px;color:var(--text1);display:flex;align-items:center;gap:8px;">🖼️ تصدير الخريطة</h3>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:5px;">عنوان الخريطة</div>
+        <input id="mex-title" value="مشروع تحديث تنظيمات البناء — مكة المكرمة"
+          style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text1);font-size:13px;box-sizing:border-box;direction:rtl;">
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-size:13px;color:var(--text1);">
+        <input type="checkbox" id="mex-arrow" checked> 🧭 سهم اتجاه الشمال
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-size:13px;color:var(--text1);">
+        <input type="checkbox" id="mex-stats" checked> 📊 عدد السجلات
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer;font-size:13px;color:var(--text1);">
+        <input type="checkbox" id="mex-date" checked> 📅 التاريخ ورقم المشروع
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="document.getElementById('map-export-dlg').remove()"
+          style="padding:8px 18px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--text2);cursor:pointer;">إلغاء</button>
+        <button onclick="doExportMap()"
+          style="padding:8px 20px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-weight:700;">🖨️ طباعة / حفظ PDF</button>
+      </div>
+    </div>`;
+  document.body.appendChild(dlg);
+}
+function doExportMap(){
+  const title=document.getElementById('mex-title')?.value||'';
+  const showArrow=document.getElementById('mex-arrow')?.checked;
+  const showStats=document.getElementById('mex-stats')?.checked;
+  const showDate=document.getElementById('mex-date')?.checked;
+  document.getElementById('map-export-dlg')?.remove();
+  const today=new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+  const ov=document.getElementById('mp-overlay');
+  ov.innerHTML=`
+    ${title?`<div class="mp-title">${esc(title)}</div>`:''}
+    ${showStats?`<div class="mp-stats">عدد السجلات: ${filtered.length}</div>`:''}
+    ${showArrow?`<div class="mp-north"><svg width="44" height="60" viewBox="0 0 44 60" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="22,2 29,28 22,22 15,28" fill="#222"/>
+      <polygon points="22,58 29,32 22,38 15,32" fill="#ccc"/>
+      <text x="22" y="13" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff" font-family="Arial">N</text>
+    </svg></div>`:''}
+    ${showDate?`<div class="mp-date">${today} | PRJ-00852</div>`:''}`;
+  window.print();
+  setTimeout(()=>{ov.innerHTML='';},1500);
 }
 
 // ── PDF Report ────────────────────────────────────
